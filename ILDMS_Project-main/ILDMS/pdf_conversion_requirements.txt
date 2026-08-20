@@ -1,0 +1,25 @@
+# PDF Conversion Dependencies
+# Install these packages for PDF conversion functionality
+
+# Primary option (Windows only) - fastest conversion
+docx2pdf>=0.1.8
+
+# Cross-platform option - requires pandoc to be installed separately
+# pypandoc>=1.11
+
+# Fallback option - pure Python but basic functionality
+reportlab>=3.6.0
+
+# Installation instructions:
+# 1. For Windows users (recommended):
+#    pip install docx2pdf
+#
+# 2. For cross-platform solution:
+#    pip install pypandoc
+#    Then install pandoc:
+#    - Windows: Download from https://pandoc.org/installing.html
+#    - macOS: brew install pandoc
+#    - Linux: sudo apt-get install pandoc
+#
+# 3. For fallback option:
+#    pip install reportlab

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chart.js Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            width: 400px;
+            height: 400px;
+            margin: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chart.js Test Page</h1>
+    
+    <div class="chart-container">
+        <h3>Test Chart 1: Document Types (from your data)</h3>
+        <canvas id="testChart1"></canvas>
+    </div>
+    
+    <div class="chart-container">
+        <h3>Test Chart 2: Sample Data</h3>
+        <canvas id="testChart2"></canvas>
+    </div>
+    
+    <script>
+        // Test Chart 1: Using your actual document types data
+        const ctx1 = document.getElementById('testChart1').getContext('2d');
+        new Chart(ctx1, {
+            type: 'doughnut',
+            data: {
+                labels: ['OTHER', 'AUDIO'],
+                datasets: [{
+                    data: [23, 6],
+                    backgroundColor: ['#3498db', '#e74c3c'],
+                    borderColor: '#ffffff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Document Types (Real Data)'
+                    },
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+        
+        // Test Chart 2: Sample data to verify Chart.js is working
+        const ctx2 = document.getElementById('testChart2').getContext('2d');
+        new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+                datasets: [{
+                    label: 'Sample Data',
+                    data: [12, 19, 3, 5, 2],
+                    backgroundColor: ['#2c3e50', '#3498db', '#27ae60', '#e74c3c', '#f39c12'],
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Sample Chart (Test Data)'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+        
+        console.log('Charts initialized successfully!');
+    </script>
+</body>
+</html>

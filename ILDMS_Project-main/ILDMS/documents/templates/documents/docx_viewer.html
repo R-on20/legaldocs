@@ -1,0 +1,65 @@
+{% block extra_head %}
+<script src="https://unpkg.com/docx-preview@latest/dist/docx-preview.min.js"></script>
+<style>
+    .docx-viewer {
+        height: 80vh;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        padding: 1rem;
+        background: white;
+    }
+    
+    #docx-container {
+        height: 100%;
+        overflow: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h3>{{ title_headline|default:document.title|safe }}</h3>
+            <a href="{{ document.file.url }}" class="btn btn-light" download>
+                <i class="bi bi-download"></i> Download Original
+            </a>
+        </div>
+        
+        <div class="card-body">
+            <div class="docx-viewer">
+                <div id="docx-container"></div>
+            </div>
+            
+            {% if search_query and content_headline %}
+            <div class="mt-4 card">
+                <div class="card-header bg-light">
+                    <h5>Search Matches in Document Content</h5>
+                </div>
+                <div class="card-body">
+                    {{ content_headline|safe }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('{{ document.file.url }}')
+        .then(response => response.blob())
+        .then(blob => {
+            docx.renderAsync(blob, document.getElementById("docx-container"))
+                .catch(error => {
+                    document.getElementById("docx-container").innerHTML = `
+                        <div class="alert alert-danger">
+                            Failed to render document. 
+                            <a href="{{ document.file.url }}" download>Download instead</a>
+                        </div>
+                    `;
+                });
+        });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,184 @@
+{% load document_filters %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Audit Log Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            font-size: 12px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            color: #333;
+        }
+        
+        .meta-info {
+            margin-bottom: 20px;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .meta-info p {
+            margin: 5px 0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+        
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .action-badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .action-create { background-color: #28a745; }
+        .action-update { background-color: #007bff; }
+        .action-view { background-color: #6c757d; }
+        .action-download { background-color: #17a2b8; }
+        .action-approve { background-color: #28a745; }
+        .action-reject { background-color: #dc3545; }
+        .action-archive { background-color: #fd7e14; }
+        .action-restore { background-color: #20c997; }
+        
+        .timestamp {
+            white-space: nowrap;
+        }
+        
+        .additional-info {
+            font-size: 10px;
+            color: #666;
+        }
+        
+        @media print {
+            body {
+                margin: 0;
+            }
+            
+            .no-print {
+                display: none;
+            }
+        }
+        
+        .page-break {
+            page-break-before: always;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Audit Log Report</h1>
+    </div>
+    
+    <div class="meta-info">
+        <p><strong>Generated on:</strong> {{ generated_at|date:"Y-m-d H:i:s T" }}</p>
+        <p><strong>Total entries:</strong> {{ total_count }}</p>
+        <p><strong>Report contains:</strong> {% if total_count > 1000 %}First 1000 entries{% else %}All entries{% endif %}</p>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th width="15%">Timestamp</th>
+                <th width="15%">User</th>
+                <th width="10%">Action</th>
+                <th width="25%">Document</th>
+                <th width="20%">Additional Details</th>
+                <th width="15%">IP Address</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td class="timestamp">{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                <td>
+                    {% if log.user %}
+                        {{ log.user.get_full_name }}
+                        {% if log.user.get_role_display %}
+                            <br><small>({{ log.user.get_role_display }})</small>
+                        {% endif %}
+                    {% else %}
+                        Anonymous
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="action-badge action-{{ log.action|lower }}">
+                        {{ log.get_action_display }}
+                    </span>
+                </td>
+                <td>
+                    <strong>{{ log.document_title }}</strong>
+                    <br><small>ID: {{ log.document_id }}</small>
+                    {% if log.document_type %}
+                        <br><small>Type: {{ log.document_type }}</small>
+                    {% endif %}
+                </td>
+                <td class="additional-info">
+                    {% for key, value in log.additional_info.items %}
+                        <strong>{{ key|format_field_name }}:</strong> {{ value }}<br>
+                    {% endfor %}
+                </td>
+                <td>{{ log.ip_address|default:"N/A" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center; color: #666;">
+                    No audit log entries found.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    {% if total_count > 1000 %}
+    <div style="margin-top: 20px; padding: 10px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px;">
+        <strong>Note:</strong> This report shows only the first 1000 entries. For complete data, please use the CSV export option or apply date filters.
+    </div>
+    {% endif %}
+    
+    <div style="margin-top: 30px; text-align: center; color: #666; font-size: 10px;">
+        <p>Generated by ILDMS - Integrated Learning Document Management System</p>
+    </div>
+    
+    <script>
+        // Auto-print when viewed in browser
+        window.onload = function() {
+            if (window.location.search.includes('auto_print=true')) {
+                window.print();
+            }
+        };
+    </script>
+</body>
+</html>

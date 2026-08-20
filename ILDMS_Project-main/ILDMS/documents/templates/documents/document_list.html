@@ -1,0 +1,484 @@
+{% extends "base.html" %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Handle both AI search and regular search forms
+    const aiSearchForm = document.getElementById('aiSearchForm');
+    const regularSearchForm = document.getElementById('searchForm');
+    const resultsContainer = document.getElementById('searchResults');
+    
+    function handleSearch(form, isAI = false) {
+        if (!form || !resultsContainer) return;
+        
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Show loading state immediately
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Searching...';
+            submitBtn.disabled = true;
+            
+            // Get form data and build URL
+            const formData = new FormData(this);
+            const params = new URLSearchParams();
+            
+            // Add form data to params
+            for (const [key, value] of formData.entries()) {
+                if (value.trim()) {
+                    params.append(key, value);
+                }
+            }
+            
+            const url = window.location.pathname + '?' + params.toString();
+            
+            // Update URL immediately
+            window.history.pushState({}, '', url);
+            
+            // Fetch new results
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const newDoc = parser.parseFromString(html, 'text/html');
+                const newResults = newDoc.getElementById('searchResults');
+                
+                if (newResults) {
+                    resultsContainer.innerHTML = newResults.innerHTML;
+                    
+                    // Scroll to results if they exist
+                    const resultsSection = document.querySelector('.alert');
+                    if (resultsSection) {
+                        resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Search error:', error);
+                // Show error message
+                resultsContainer.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        Search failed. Please try again.
+                    </div>
+                `;
+            })
+            .finally(() => {
+                // Restore button state
+                submitBtn.innerHTML = originalBtnText;
+                submitBtn.disabled = false;
+            });
+        });
+    }
+    
+    // Setup both forms
+    if (aiSearchForm) {
+        handleSearch(aiSearchForm, true);
+    }
+    if (regularSearchForm) {
+        handleSearch(regularSearchForm, false);
+    }
+    
+    // Handle browser back/forward
+    window.addEventListener('popstate', function() {
+        location.reload(); // Simple reload for now to avoid complexity
+    });
+    
+    // Auto-refresh for documents still processing
+    const processingElements = document.querySelectorAll('.badge:contains("Processing"), .badge .bi-hourglass-split');
+    
+    if (processingElements.length > 0) {
+        // Refresh the page every 30 seconds if there are processing documents
+        setTimeout(function() {
+            window.location.reload();
+        }, 30000);
+        
+        // Add visual indicator that page will refresh
+        const refreshNotice = document.createElement('div');
+        refreshNotice.className = 'alert alert-info alert-dismissible fade show mt-3';
+        refreshNotice.innerHTML = `
+            <i class="bi bi-info-circle"></i>
+            <strong>Processing documents detected.</strong> This page will auto-refresh in 30 seconds to update processing status.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const container = document.querySelector('.container');
+        container.insertBefore(refreshNotice, container.children[1]);
+    }
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- AI Search Form -->
+    <div class="card mb-3 shadow-sm" style="border-left: 4px solid #007bff;">
+        <div class="card-body py-3">
+            <form method="get" class="mb-0" id="aiSearchForm">
+                <div class="row align-items-end">
+                    <div class="col-md-10">
+                        <label for="{{ ai_search_form.ai_query.id_for_label }}" class="form-label mb-2 fw-bold text-primary">
+                            <i class="bi bi-robot me-1"></i> Ask AI
+                        </label>
+                        {{ ai_search_form.ai_query }}
+                        <div class="form-text mt-1">
+                            Try: <em>"contracts from last month"</em> or <em>"legal research by John"</em>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-send"></i> Ask
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Regular Search Form -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body py-3">
+            <form method="get" class="row g-3" id="searchForm">
+                <div class="col-md-6">
+                    <label for="{{ search_form.q.id_for_label }}" class="form-label mb-2 fw-bold">
+                        <i class="bi bi-search me-1"></i> Keyword Search
+                    </label>
+                    {{ search_form.q }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label mb-2">Type</label>
+                    {{ search_form.document_type }}
+                </div>
+                {% if perms.documents.can_view_confidential %}
+                <div class="col-md-2 d-flex align-items-end">
+                    <div class="form-check form-switch">
+                        {{ search_form.confidential }}
+                        <label class="form-check-label ms-1" for="{{ search_form.confidential.id_for_label }}">
+                            Confidential
+                        </label>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="submit" class="btn btn-outline-primary w-100">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Documents</h2>
+        {% if user_can_upload_documents %}
+        <a href="{% url 'documents:document_upload' %}" class="btn btn-secondary me-2">
+            <i class="bi bi-cloud-upload"></i> Upload Document
+        </a>
+                <a href="{% url 'documents:document_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Create New
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="card shadow">
+        <div class="card-body" id="searchResults">
+            {% if search_query %}
+            <!-- Search Results Summary -->
+            <div class="alert {% if is_ai_search %}alert-primary{% else %}alert-info{% endif %} border-0 shadow-sm mb-4">
+                <div class="row align-items-center">
+                    <div class="col-md-9">
+                        <div class="d-flex align-items-center mb-1">
+                            {% if is_ai_search %}
+                                <i class="bi bi-robot me-2 text-primary"></i>
+                            {% else %}
+                                <i class="bi bi-search me-2"></i>
+                            {% endif %}
+                            <strong>"{{ search_query }}"</strong>
+                            
+                            <!-- Method indicator badge -->
+                            {% if search_method == 'ai' %}
+                                <span class="badge bg-success ms-2">
+                                    <i class="bi bi-check-circle"></i> AI
+                                </span>
+                            {% elif search_method == 'fallback' %}
+                                <span class="badge bg-warning text-dark ms-2">
+                                    <i class="bi bi-arrow-right"></i> Keyword
+                                </span>
+                            {% elif search_method == 'keyword' %}
+                                <span class="badge bg-secondary ms-2">
+                                    <i class="bi bi-type"></i> Keyword
+                                </span>
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">
+                            {{ search_count }} of {{ total_count }} documents
+                        </small>
+                        
+                        {% if ai_search_result and search_method == 'ai' and extracted_filters %}
+                        <div class="mt-2">
+                            <div class="d-flex flex-wrap gap-1">
+                                {% for key, value in extracted_filters.items %}
+                                    {% if key != 'keywords' and value %}
+                                        <span class="badge bg-light text-dark border small">
+                                            {{ key|capfirst }}: {{ value }}
+                                        </span>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if extracted_keywords %}
+                                    {% for keyword in extracted_keywords %}
+                                        <span class="badge bg-primary small">{{ keyword }}</span>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-3 text-end">
+                        <a href="{% url 'documents:document_list' %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Clear
+                        </a>
+                        {% if search_method == 'ai' and ai_search_result %}
+                        <button class="btn btn-sm btn-outline-info ms-1" type="button" data-bs-toggle="collapse" data-bs-target="#aiDetails">
+                            <i class="bi bi-info-circle"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if search_method == 'ai' and ai_search_result %}
+                <div class="collapse mt-3" id="aiDetails">
+                    <div class="border-top pt-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="small text-muted mb-2">AI Analysis</h6>
+                                <div class="small">
+                                    <strong>Query:</strong> {{ search_query }}<br>
+                                    <strong>Method:</strong> {{ ai_search_result.method|title }}<br>
+                                    {% if ai_search_result.filters %}
+                                    <strong>Filters Applied:</strong> {{ ai_search_result.filters|length }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if ai_search_result.ai_response and settings.DEBUG %}
+                            <div class="col-md-6">
+                                <h6 class="small text-muted mb-2">Raw Response</h6>
+                                <details class="small">
+                                    <summary class="text-primary" style="cursor: pointer;">View JSON</summary>
+                                    <pre class="mt-2 p-2 bg-light rounded small">{{ ai_search_result.ai_response|truncatechars:200 }}</pre>
+                                </details>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            {% if page_obj.paginator.count > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Uploaded</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for document in page_obj %}
+                        <tr>
+                            <td>
+                                {{ document.title }}
+                                {% if document.confidential %}
+                                <span class="badge bg-danger ms-2">Confidential</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ document.get_document_type_display }}</td>
+                            <td>
+                                {% if document.status == 'DRAFT' %}
+                                    {% if document.document_type in 'AUDIO,VIDEO' %}
+                                        {% if document.audio_transcript %}
+                                            <span class="badge bg-info">
+                                                <i class="bi bi-check-circle me-1"></i>
+                                                Transcribed
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-warning">
+                                                <i class="bi bi-hourglass-split me-1"></i>
+                                                Processing...
+                                            </span>
+                                        {% endif %}
+                                    {% elif document.file.name|lower|slice:'-5:' == '.docx' or document.file.name|lower|slice:'-4:' == '.doc' %}
+                                        {% if document.html_content %}
+                                            <span class="badge bg-info">
+                                                <i class="bi bi-check-circle me-1"></i>
+                                                Processed
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-warning">
+                                                <i class="bi bi-hourglass-split me-1"></i>
+                                                Processing...
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            {{ document.get_status_display }}
+                                        </span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-{% if document.status == 'APPROVED' %}success{% elif document.status == 'REVIEW' %}warning{% else %}secondary{% endif %}">
+                                        {{ document.get_status_display }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>{{ document.uploaded_at|date:"SHORT_DATE_FORMAT" }}</td>
+<td>
+    <div class="btn-group" role="group">
+        <!-- View Button -->
+        {% if request.GET.q or request.GET.ai_query %}
+        <a href="{% url 'documents:document_detail' document.pk %}?{% if request.GET.q %}q={{ request.GET.q|urlencode }}{% endif %}{% if request.GET.ai_query %}ai_query={{ request.GET.ai_query|urlencode }}{% endif %}" class="btn btn-sm btn-outline-info" title="View">
+            <i class="bi bi-eye"></i>
+        </a>
+        {% else %}
+        <a href="{% url 'documents:document_detail' document.pk %}" class="btn btn-sm btn-outline-info" title="View">
+            <i class="bi bi-eye"></i>
+        </a>
+        {% endif %}
+
+        <!-- Edit Button -->
+        {% if user_can_edit_documents %}
+        <a href="{% url 'documents:document_update' document.pk %}" class="btn btn-sm btn-outline-warning" title="Edit">
+            <i class="bi bi-pencil-square"></i>
+        </a>
+        {% endif %}
+
+        <!-- Add Version Button -->
+        {% if user_can_create_versions %}
+        <a href="{% url 'documents:version_create' document_pk=document.pk %}" class="btn btn-sm btn-outline-secondary" title="Add Version">
+            <i class="bi bi-plus-circle"></i>
+        </a>
+        {% endif %}
+
+        <!-- Archive/Delete Button (last in group) -->
+        {% if user_can_delete_documents and not document.is_archived %}
+        <form method="post" action="{% url 'documents:document_archive' document.pk %}" style="margin: 0; display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-danger" title="Archive" style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                <i class="bi bi-archive"></i>
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</td>
+
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.ai_query %}&ai_query={{ request.GET.ai_query }}{% endif %}">&laquo; First</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.ai_query %}&ai_query={{ request.GET.ai_query }}{% endif %}">Previous</a>
+                    </li>
+                    {% endif %}
+
+                    <li class="page-item disabled">
+                        <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.ai_query %}&ai_query={{ request.GET.ai_query }}{% endif %}">Next</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.ai_query %}&ai_query={{ request.GET.ai_query }}{% endif %}">Last &raquo;</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+
+            {% else %}
+            <div class="text-center py-5">
+                {% if search_query %}
+                    <!-- Search-specific no results message -->
+                    <div class="mb-4">
+                        <i class="bi bi-search display-1 text-muted"></i>
+                    </div>
+                    <h4 class="text-muted">No documents found for "{{ search_query }}"</h4>
+                    <div class="mt-3">
+                        <p class="text-muted">
+                            We searched through {{ total_count }} document{{ total_count|pluralize }} across:
+                        </p>
+                        <ul class="list-unstyled text-muted small">
+                            <li><i class="bi bi-check-circle text-success me-2"></i>Document titles</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i>Document content</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i>Document descriptions</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i>Audio transcripts</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i>HTML content</li>
+                        </ul>
+                    </div>
+                    <div class="mt-4">
+                        <h6 class="text-muted">Try these suggestions:</h6>
+                        <div class="row justify-content-center mt-3">
+                            <div class="col-md-8">
+                                <ul class="list-unstyled text-start">
+                                    <li class="mb-2"><i class="bi bi-lightbulb text-warning me-2"></i>Check your spelling</li>
+                                    <li class="mb-2"><i class="bi bi-lightbulb text-warning me-2"></i>Try different keywords or synonyms</li>
+                                    <li class="mb-2"><i class="bi bi-lightbulb text-warning me-2"></i>Use shorter, more general terms</li>
+                                    <li class="mb-2"><i class="bi bi-lightbulb text-warning me-2"></i>Remove filters to broaden your search</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <a href="{% url 'documents:document_list' %}" class="btn btn-outline-primary me-2">
+                            <i class="bi bi-arrow-left"></i> View All Documents
+                        </a>
+                        <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('id_q').value=''; document.getElementById('searchForm').submit();">
+                            <i class="bi bi-x-circle"></i> Clear Search
+                        </button>
+                    </div>
+                {% else %}
+                    <!-- General no documents message -->
+                    <div class="mb-4">
+                        <i class="bi bi-folder-x display-1 text-muted"></i>
+                    </div>
+                    <h4 class="text-muted">No documents available</h4>
+                    <p class="text-muted">
+                        {% if user_can_upload_documents %}
+                            Get started by uploading your first document.
+                        {% else %}
+                            Contact your administrator to upload documents.
+                        {% endif %}
+                    </p>
+                    {% if user_can_upload_documents %}
+                    <div class="mt-4">
+                        <a href="{% url 'documents:document_upload' %}" class="btn btn-primary me-2">
+                            <i class="bi bi-cloud-upload"></i> Upload Document
+                        </a>
+                        <a href="{% url 'documents:document_create' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-plus-circle"></i> Create New
+                        </a>
+                    </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

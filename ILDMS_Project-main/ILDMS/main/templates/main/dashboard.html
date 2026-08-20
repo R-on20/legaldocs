@@ -1,0 +1,946 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Legal DMS{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --dashboard-card-bg: #ffffff;
+        --dashboard-stat-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --dashboard-warning: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        --dashboard-success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        --dashboard-info: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+
+    .dashboard-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0 0 1rem 1rem;
+    }
+
+    .stat-card {
+        background: var(--dashboard-card-bg);
+        border: none;
+        border-radius: 1rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    }
+
+    /* Ensure clickable stat cards maintain their styling */
+    a .stat-card {
+        color: inherit;
+    }
+
+    a .stat-card:hover {
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .stat-card .card-body {
+        padding: 1.5rem;
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .stat-icon {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        font-size: 2rem;
+        opacity: 0.3;
+    }
+
+    .gradient-primary { background: var(--dashboard-stat-bg); }
+    .gradient-warning { background: var(--dashboard-warning); }
+    .gradient-success { background: var(--dashboard-success); }
+    .gradient-info { background: var(--dashboard-info); }
+
+    .quick-action-card {
+        background: white;
+        border: none;
+        border-radius: 1rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .quick-action-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .quick-action-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .activity-item {
+        padding: 1rem;
+        border-bottom: 1px solid #f1f3f4;
+        transition: background-color 0.3s ease;
+    }
+
+    .activity-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+    }
+
+    .chart-container {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        padding: 1.5rem;
+        height: 400px;
+    }
+
+    .welcome-banner {
+        background: url('https://images.unsplash.com/photo-1589391886645-d51941baf7fb?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80') center/cover;
+        position: relative;
+        border-radius: 1rem;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    .welcome-banner::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.8) 0%, rgba(118, 75, 162, 0.8) 100%);
+    }
+
+    .welcome-content {
+        position: relative;
+        z-index: 2;
+        padding: 3rem 2rem;
+        color: white;
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        color: rgba(255,255,255,0.7);
+    }
+
+    @media (max-width: 768px) {
+        .dashboard-header {
+            padding: 1rem 0;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+        }
+        
+        .welcome-content {
+            padding: 2rem 1rem;
+        }
+    }
+
+    .pulse {
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    .fade-in {
+        animation: fadeIn 0.8s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .document-type-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f1f3f4;
+    }
+
+    .document-type-item:last-child {
+        border-bottom: none;
+    }
+
+    .document-type-badge {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Welcome Banner -->
+    <div class="welcome-banner fade-in">
+        <div class="welcome-content">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'documents:home' %}" class="text-white">Home</a></li>
+                    <li class="breadcrumb-item active text-white" aria-current="page">Dashboard</li>
+                </ol>
+            </nav>
+            <h1 class="display-4 fw-bold mb-2">Welcome back, {{ user.get_full_name|default:user.username }}!</h1>
+            <p class="lead mb-0">Here's what's happening with your documents today.</p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-3 col-md-6">
+            <a href="{% url 'documents:document_list' %}" class="text-decoration-none">
+                <div class="card stat-card fade-in">
+                    <div class="card-body position-relative gradient-primary text-white">
+                        <i class="bi bi-file-earmark-text stat-icon"></i>
+                        <div class="stat-number">{{ total_documents|default:0 }}</div>
+                        <div class="stat-label text-white-50">Total Documents</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <a href="{% url 'documents:document_list' %}?is_archived=false" class="text-decoration-none">
+                <div class="card stat-card fade-in">
+                    <div class="card-body position-relative gradient-success text-white">
+                        <i class="bi bi-check-circle stat-icon"></i>
+                        <div class="stat-number">{{ active_documents|default:0 }}</div>
+                        <div class="stat-label text-white-50">Active Documents</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <a href="{% url 'documents:archived_documents' %}" class="text-decoration-none">
+                <div class="card stat-card fade-in">
+                    <div class="card-body position-relative gradient-warning text-white">
+                        <i class="bi bi-archive stat-icon"></i>
+                        <div class="stat-number">{{ archived_documents|default:0 }}</div>
+                        <div class="stat-label text-white-50">Archived</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <a href="{% url 'documents:pending_review' %}" class="text-decoration-none">
+                <div class="card stat-card fade-in">
+                    <div class="card-body position-relative gradient-info text-white">
+                        <i class="bi bi-clock stat-icon"></i>
+                        <div class="stat-number">{{ pending_review|default:0 }}</div>
+                        <div class="stat-label text-white-50">Pending Review</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    {% if can_upload or can_create or can_view_admin %}
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <h3 class="mb-3"><i class="bi bi-lightning-charge"></i> Quick Actions</h3>
+        </div>
+        {% if can_upload %}
+        <div class="col-lg-3 col-md-6">
+            <a href="{% url 'documents:document_upload' %}" class="quick-action-card card h-100">
+                <div class="card-body text-center">
+                    <div class="quick-action-icon gradient-primary text-white mx-auto">
+                        <i class="bi bi-cloud-upload"></i>
+                    </div>
+                    <h5 class="card-title">Upload Document</h5>
+                    <p class="card-text text-muted">Add new documents to the system</p>
+                </div>
+            </a>
+        </div>
+        {% endif %}
+        
+        {% if can_create %}
+        <div class="col-lg-3 col-md-6">
+            <a href="{% url 'documents:document_create' %}" class="quick-action-card card h-100">
+                <div class="card-body text-center">
+                    <div class="quick-action-icon gradient-info text-white mx-auto">
+                        <i class="bi bi-file-earmark-plus"></i>
+                    </div>
+                    <h5 class="card-title">Create Document</h5>
+                    <p class="card-text text-muted">Create a new document using the editor</p>
+                </div>
+            </a>
+        </div>
+        {% endif %}
+        
+        <div class="col-lg-3 col-md-6">
+            <a href="{% url 'documents:document_list' %}" class="quick-action-card card h-100">
+                <div class="card-body text-center">
+                    <div class="quick-action-icon gradient-success text-white mx-auto">
+                        <i class="bi bi-search"></i>
+                    </div>
+                    <h5 class="card-title">Browse Documents</h5>
+                    <p class="card-text text-muted">Search and view all documents</p>
+                </div>
+            </a>
+        </div>
+        
+        {% if can_view_admin %}
+        <div class="col-lg-3 col-md-6">
+            <a href="{% url 'documents:archived_documents' %}" class="quick-action-card card h-100">
+                <div class="card-body text-center">
+                    <div class="quick-action-icon gradient-warning text-white mx-auto">
+                        <i class="bi bi-archive"></i>
+                    </div>
+                    <h5 class="card-title">Archived Documents</h5>
+                    <p class="card-text text-muted">View archived documents</p>
+                </div>
+            </a>
+        </div>
+        {% endif %}
+        
+        {% if can_view_audit %}
+        <div class="col-lg-3 col-md-6">
+            <a href="{% url 'documents:audit_log' %}" class="quick-action-card card h-100">
+                <div class="card-body text-center">
+                    <div class="quick-action-icon gradient-info text-white mx-auto">
+                        <i class="bi bi-journal-text"></i>
+                    </div>
+                    <h5 class="card-title">Audit Log</h5>
+                    <p class="card-text text-muted">Review system activity</p>
+                </div>
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Content Row -->
+    <div class="row g-4">
+        <!-- Recent Activity -->
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-activity"></i> Recent Activity</h5>
+                    <span class="badge bg-primary">{{ recent_documents|length }} items</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_documents %}
+                        {% for document in recent_documents %}
+                        <div class="activity-item">
+                            <div class="d-flex align-items-center">
+                                <div class="activity-avatar me-3">
+                                    {{ document.uploaded_by.first_name|first|default:"U" }}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="mb-1">
+                                                <a href="{% url 'documents:document_detail' document.pk %}" class="text-decoration-none">
+                                                    {{ document.title|truncatechars:50 }}
+                                                </a>
+                                            </h6>
+                                            <small class="text-muted">
+                                                Uploaded by {{ document.uploaded_by.get_full_name|default:document.uploaded_by.username }}
+                                            </small>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-light text-dark">{{ document.get_document_type_display }}</span>
+                                            <br>
+                                            <small class="text-muted">{{ document.uploaded_at|timesince }} ago</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-inbox display-4 text-muted"></i>
+                            <p class="text-muted mt-3">No recent activity to display</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- My Recent Documents -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-person-check"></i> My Recent Documents</h6>
+                </div>
+                <div class="card-body">
+                    {% if my_recent_documents %}
+                        {% for document in my_recent_documents %}
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <a href="{% url 'documents:document_detail' document.pk %}" class="text-decoration-none">
+                                    <strong>{{ document.title|truncatechars:30 }}</strong>
+                                </a>
+                                <br>
+                                <small class="text-muted">{{ document.uploaded_at|date:"M d, Y" }}</small>
+                            </div>
+                            <span class="badge bg-primary">{{ document.get_document_type_display }}</span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center">No recent documents</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Document Types Overview -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-pie-chart"></i> Document Types</h6>
+                </div>
+                <div class="card-body">
+                    {% if document_types %}
+                        {% for doc_type in document_types %}
+                        <div class="document-type-item">
+                            <span>{{ doc_type.document_type|default:"Unknown" }}</span>
+                            <span class="document-type-badge">{{ doc_type.count }}</span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center">No document types to display</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Storage Info -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-hdd"></i> Storage Overview</h6>
+                </div>
+                <div class="card-body text-center">
+                    <div class="stat-number text-primary">{{ total_storage_mb|default:0 }}</div>
+                    <div class="stat-label">MB Used</div>
+                    <div class="progress mt-3" style="height: 10px;">
+                        <div class="progress-bar bg-gradient" role="progressbar" style="width: {% widthratio total_storage_mb 1000 100 %}%"></div>
+                    </div>
+                    <small class="text-muted mt-2 d-block">{{ recent_uploads|default:0 }} uploads this month</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Section -->
+    <div class="row g-4 mt-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0"><i class="bi bi-graph-up"></i> Analytics Overview</h3>
+                <a href="{% url 'analytics:dashboard' %}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-arrow-right"></i> View Full Analytics
+                </a>
+            </div>
+        </div>
+        
+        <!-- Quick Analytics Cards -->
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Total Searches</h6>
+                            <h3 class="mb-0" id="total-searches">{{ total_searches|default:0 }}</h3>
+                            <small class="opacity-75">This month</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-search fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Document Views</h6>
+                            <h3 class="mb-0" id="total-views">{{ total_views|default:0 }}</h3>
+                            <small class="opacity-75">This month</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-eye fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Active Users</h6>
+                            <h3 class="mb-0" id="active-users">{{ active_users_count|default:0 }}</h3>
+                            <small class="opacity-75">This month</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-people fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Downloads</h6>
+                            <h3 class="mb-0" id="total-downloads">{{ total_downloads|default:0 }}</h3>
+                            <small class="opacity-75">This month</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-download fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Charts Row -->
+        <div class="col-lg-8">
+            <div class="chart-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Recent Upload Trends</h5>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="refreshDashboardChart()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+                <div style="height: 300px;">
+                    <canvas id="dashboardUploadChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="chart-container">
+                <h5 class="mb-3">Document Status Distribution</h5>
+                <div style="height: 300px;">
+                    <canvas id="dashboardStatusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js for dashboard analytics -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Dashboard Upload Trends Chart
+    function initDashboardCharts() {
+        // Upload trends chart
+        fetch('/main/api/dashboard-stats/')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Dashboard data received:', data);
+                const ctx = document.getElementById('dashboardUploadChart');
+                if (ctx) {
+                    const chart = new Chart(ctx.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: data.labels || [],
+                            datasets: data.datasets || [{
+                                label: 'Documents Uploaded',
+                                data: [],
+                                borderColor: '#0d6efd',
+                                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: {
+                                        color: 'rgba(0,0,0,0.1)'
+                                    }
+                                },
+                                x: {
+                                    grid: {
+                                        display: false
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            })
+            .catch(error => {
+                console.log('Main dashboard API not available, using sample data:', error);
+                const ctx = document.getElementById('dashboardUploadChart');
+                if (ctx) {
+                    const chart = new Chart(ctx.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                            datasets: [{
+                                label: 'Documents Uploaded',
+                                data: [12, 19, 8, 15, 22, 18],
+                                borderColor: '#0d6efd',
+                                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false }
+                            }
+                        }
+                    });
+                }
+            });
+
+        // Document status chart
+        const statusCtx = document.getElementById('dashboardStatusChart');
+        if (statusCtx) {
+            new Chart(statusCtx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Active', 'Archived', 'Draft'],
+                    datasets: [{
+                        data: [{{ active_documents|default:0 }}, {{ archived_documents|default:0 }}, {{ draft_documents|default:0 }}],
+                        backgroundColor: [
+                            '#198754',
+                            '#6c757d', 
+                            '#ffc107'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    function refreshDashboardChart() {
+        // Reload the upload chart
+        initDashboardCharts();
+    }
+
+    // Initialize charts when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        initDashboardCharts();
+    });
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Dashboard functionality
+class Dashboard {
+    constructor() {
+        this.init();
+    }
+    
+    init() {
+        this.animateStatsOnLoad();
+        this.addHoverEffects();
+        this.initRefreshButton();
+        // this.loadDynamicStats(); // Uncomment when API is ready
+    }
+    
+    animateStatsOnLoad() {
+        const statCards = document.querySelectorAll('.stat-card');
+        statCards.forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            
+            setTimeout(() => {
+                card.style.transition = 'all 0.6s ease';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+        
+        // Animate numbers counting up
+        this.animateNumbers();
+    }
+    
+    animateNumbers() {
+        const numbers = document.querySelectorAll('.stat-number');
+        numbers.forEach(number => {
+            const target = parseInt(number.textContent);
+            if (target > 0) {
+                this.countUp(number, 0, target, 1000);
+            }
+        });
+    }
+    
+    countUp(element, start, end, duration) {
+        const range = end - start;
+        const minTimer = 50;
+        let stepTime = Math.abs(Math.floor(duration / range));
+        stepTime = Math.max(stepTime, minTimer);
+        
+        const startTime = new Date().getTime();
+        const endTime = startTime + duration;
+        
+        const timer = setInterval(() => {
+            const now = new Date().getTime();
+            const remaining = Math.max((endTime - now) / duration, 0);
+            const value = Math.round(end - (remaining * range));
+            element.textContent = value;
+            
+            if (value === end) {
+                clearInterval(timer);
+                // Add pulse effect for non-zero values
+                if (value > 0) {
+                    element.classList.add('pulse');
+                }
+            }
+        }, stepTime);
+    }
+    
+    addHoverEffects() {
+        // Activity items hover effect
+        const activityItems = document.querySelectorAll('.activity-item');
+        activityItems.forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateX(5px)';
+                this.style.transition = 'transform 0.3s ease';
+            });
+            
+            item.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateX(0)';
+            });
+        });
+        
+        // Quick action cards scale effect
+        const quickActions = document.querySelectorAll('.quick-action-card');
+        quickActions.forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-3px) scale(1.02)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+    }
+    
+    initRefreshButton() {
+        // Add a refresh button for real-time updates
+        const refreshBtn = document.createElement('button');
+        refreshBtn.className = 'btn btn-outline-primary btn-sm position-fixed';
+        refreshBtn.style.cssText = 'bottom: 20px; right: 20px; z-index: 1000; border-radius: 50%; width: 50px; height: 50px;';
+        refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i>';
+        refreshBtn.title = 'Refresh Dashboard';
+        
+        refreshBtn.addEventListener('click', () => {
+            this.refreshStats();
+        });
+        
+        document.body.appendChild(refreshBtn);
+    }
+    
+    refreshStats() {
+        // Add loading state
+        const statNumbers = document.querySelectorAll('.stat-number');
+        statNumbers.forEach(num => {
+            num.style.opacity = '0.5';
+        });
+        
+        // Simulate refresh (in real implementation, this would call the API)
+        setTimeout(() => {
+            statNumbers.forEach(num => {
+                num.style.opacity = '1';
+            });
+            
+            // Show success message
+            this.showNotification('Dashboard refreshed', 'success');
+        }, 500);
+    }
+    
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} position-fixed`;
+        notification.style.cssText = 'top: 20px; right: 20px; z-index: 1100; min-width: 250px;';
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close ms-2" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 3000);
+    }
+    
+    // Placeholder for future API integration
+    async loadDynamicStats() {
+        try {
+            const response = await fetch('/main/api/dashboard-stats/');
+            if (response.ok) {
+                const data = await response.json();
+                this.updateStatsFromAPI(data);
+            }
+        } catch (error) {
+            console.error('Error loading dashboard stats:', error);
+        }
+    }
+    
+    updateStatsFromAPI(data) {
+        // Update DOM with fresh data from API
+        // Implementation would update the statistics cards
+        console.log('API data received:', data);
+    }
+}
+
+// Initialize dashboard when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    new Dashboard();
+});
+
+// Add keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Ctrl/Cmd + D for dashboard shortcut
+    if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        window.location.href = '{% url "main:dashboard" %}';
+    }
+    
+    // R for refresh
+    if (e.key === 'r' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        location.reload();
+    }
+});
+
+// Add responsive chart placeholders
+function initCharts() {
+    // Placeholder for Chart.js integration
+    console.log('Charts initialization ready');
+    
+    // Example of how charts would be initialized:
+    /*
+    const ctx = document.getElementById('uploadTrendsChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'Document Uploads',
+                    data: [12, 19, 3, 5, 2, 3],
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+    */
+}
+
+// PWA-like features
+if ('serviceWorker' in navigator) {
+    // Future: Add service worker for offline functionality
+    console.log('Service Worker support detected');
+}
+
+// Add smooth scrolling for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+            target.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

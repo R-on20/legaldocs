@@ -1,0 +1,820 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <!-- Chart.js CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    
+    <!-- Date picker CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    
+    <style>
+        /* Modern flat design system for analytics */
+        :root {
+            --analytics-primary: #2c3e50;
+            --analytics-secondary: #34495e;
+            --analytics-accent: #3498db;
+            --analytics-success: #27ae60;
+            --analytics-warning: #f39c12;
+            --analytics-danger: #e74c3c;
+            --analytics-light: #ecf0f1;
+            --analytics-dark: #2c3e50;
+            --analytics-muted: #7f8c8d;
+            --analytics-card-bg: #ffffff;
+            --analytics-border: #dee2e6;
+            --analytics-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            --analytics-shadow-hover: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+
+        /* Modern Analytics Cards */
+        .analytics-card {
+            background: var(--analytics-card-bg);
+            border: 1px solid var(--analytics-border);
+            border-radius: 0.75rem;
+            box-shadow: var(--analytics-shadow);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .analytics-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--analytics-shadow-hover);
+            border-color: var(--analytics-accent);
+        }
+        
+        .analytics-card .card-body {
+            position: relative;
+            padding: 1.5rem;
+        }
+        
+        /* Card variants for different metrics */
+        .analytics-card.primary {
+            border-left: 4px solid var(--analytics-primary);
+        }
+        
+        .analytics-card.success {
+            border-left: 4px solid var(--analytics-success);
+        }
+        
+        .analytics-card.warning {
+            border-left: 4px solid var(--analytics-warning);
+        }
+        
+        .analytics-card.danger {
+            border-left: 4px solid var(--analytics-danger);
+        }
+        
+        .analytics-card.accent {
+            border-left: 4px solid var(--analytics-accent);
+        }
+        
+        /* Modern Analytics Header */
+        .analytics-header {
+            background: var(--analytics-primary);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            border-radius: 0 0 0.75rem 0.75rem;
+        }
+        
+        .analytics-header h1 {
+            font-size: clamp(1.75rem, 5vw, 2.5rem);
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .analytics-header p {
+            margin: 0.5rem 0 0 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        /* Remove all gradient styles for clean flat design */
+        
+        .analytics-card:nth-child(4) {
+            background: linear-gradient(135deg, var(--analytics-secondary) 0%, #374151 100%);
+            color: var(--text-on-gradient);
+        }
+        
+        .analytics-card:nth-child(4)::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--overlay-dark);
+            z-index: 1;
+        }
+        
+        .analytics-card:nth-child(4) {
+            background: white;
+        }
+        
+        /* Responsive typography for gradient cards with accessibility */
+        .metric-value {
+            font-size: clamp(2rem, 4vw, 2.5rem);
+            font-weight: 700;
+            color: inherit;
+            margin-bottom: 0.5rem;
+            text-shadow: var(--text-shadow);
+            line-height: 1.1;
+        }
+        
+        .metric-label {
+            font-size: clamp(0.8rem, 2vw, 0.9rem);
+            color: inherit;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            text-shadow: var(--text-shadow);
+            opacity: 0.95;
+        }
+        
+        /* Ensure text on gradient cards is readable */
+        .analytics-card .card-body {
+            position: relative;
+            z-index: 3;
+        }
+        
+        .analytics-card .metric-trend,
+        .analytics-card .text-muted,
+        .analytics-card small {
+            color: inherit !important;
+            opacity: 0.9;
+            text-shadow: var(--text-shadow);
+        }
+        
+        .stat-icon {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            opacity: 0.3;
+            color: inherit;
+            z-index: 2;
+            text-shadow: var(--text-shadow);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+        
+        .small-chart {
+            height: 280px;
+            background: white;
+        }
+        
+        /* Accessible gradient navigation */
+        .analytics-nav {
+            background: linear-gradient(135deg, var(--analytics-secondary) 0%, #374151 100%);
+            border-radius: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .analytics-nav::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--overlay-dark);
+            z-index: 1;
+        }
+        
+        .analytics-nav .nav-pills {
+            position: relative;
+            z-index: 2;
+        }
+        
+        .analytics-nav .nav-link {
+            position: relative;
+            color: var(--text-on-gradient);
+            border: none;
+            border-radius: 0.5rem;
+            margin: 0.25rem;
+            padding: 0.75rem 1rem;
+            font-weight: 500;
+            text-shadow: var(--text-shadow);
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+        
+        .analytics-nav .nav-link::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--overlay-dark);
+            border-radius: 0.5rem;
+            z-index: -1;
+            transition: all 0.2s ease;
+        }
+        
+        .analytics-nav .nav-link:hover::after,
+        .analytics-nav .nav-link.active::after {
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
+        .analytics-nav .nav-link:hover,
+        .analytics-nav .nav-link.active {
+            color: #0d6efd;
+            text-shadow: none;
+        }
+        
+        /* Accessible button styling for gradient backgrounds */
+        .btn-analytics {
+            position: relative;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: 2px solid transparent;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+        
+        .btn-analytics::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 0.4rem;
+            z-index: -1;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-analytics:hover {
+            color: white;
+            background: #495057;
+            text-shadow: none;
+            border-color: #495057;
+        }
+        
+        .btn-analytics:hover::after {
+            background: rgba(0, 0, 0, 0);
+        }
+        
+        .btn-analytics:focus {
+            box-shadow: 0 0 0 0.2rem rgba(73, 80, 87, 0.5);
+            outline: none;
+        }
+        
+        /* Responsive typography scaling */
+        @media (max-width: 768px) {
+            .analytics-header h1 {
+                font-size: clamp(1.75rem, 5vw, 2.5rem);
+            }
+            
+            .analytics-card h3 {
+                font-size: clamp(1.1rem, 3.5vw, 1.25rem);
+            }
+            
+            .metric-value {
+                font-size: clamp(1.5rem, 5vw, 2rem);
+            }
+            
+            .analytics-nav .nav-link {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.9rem;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .analytics-card {
+                margin-bottom: 1rem;
+            }
+            
+            .date-range-picker {
+                padding: 0.75rem;
+                margin-bottom: 1.5rem;
+            }
+            
+            .btn-analytics {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+            }
+        }
+        
+        .date-range-picker {
+            background: rgba(248, 249, 250, 0.95);
+            border: 1px solid rgba(222, 226, 230, 0.8);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .date-range-picker .form-control {
+            border: 2px solid rgba(222, 226, 230, 0.8);
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: rgba(255, 255, 255, 0.95);
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            color: #495057;
+        }
+        
+        .date-range-picker .form-control:focus {
+            border-color: var(--analytics-primary);
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+            background: white;
+            outline: none;
+        }
+        
+        .date-range-picker .form-control:hover {
+            border-color: rgba(102, 126, 234, 0.6);
+        }
+        
+        .date-range-picker .btn-primary {
+            background: var(--analytics-primary);
+            border: 2px solid transparent;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+        }
+        
+        .date-range-picker .btn-primary:hover {
+            background: #495057;
+            border-color: #495057;
+            text-shadow: none;
+        }
+        
+        .date-range-picker .btn-primary:focus {
+            box-shadow: 0 0 0 0.2rem rgba(73, 80, 87, 0.5);
+            outline: none;
+        }
+        
+        /* Chart container styling */
+        .chart-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            margin-bottom: 2rem;
+        }
+        
+        .export-buttons {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+        
+        .export-buttons .btn {
+            border-radius: 0.5rem;
+            padding: 0.625rem 1.25rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+            position: relative;
+        }
+        
+        .export-buttons .btn-outline-primary {
+            border-color: var(--analytics-primary);
+            color: var(--analytics-primary);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        
+        .export-buttons .btn-outline-primary:hover {
+            background: var(--analytics-primary);
+            color: white;
+            border-color: var(--analytics-primary);
+        }
+        
+        .export-buttons .btn-outline-primary:focus {
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+            outline: none;
+        }
+        
+        /* Additional accessible styling */
+        .analytics-table {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .analytics-table th {
+            background: var(--analytics-primary);
+            color: white;
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            border: none;
+        }
+        
+        .analytics-table td {
+            border-color: rgba(222, 226, 230, 0.5);
+        }
+        
+        .analytics-table tbody tr:hover {
+            background: rgba(102, 126, 234, 0.05);
+        }
+        
+        .export-buttons .btn-outline-secondary {
+            border: 2px solid #6c757d;
+            color: #6c757d;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        
+        .export-buttons .btn-outline-secondary:hover {
+            background: #6c757d;
+            color: white;
+            border-color: #6c757d;
+        }
+        
+        .export-buttons .btn-outline-secondary:focus {
+            box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.25);
+            outline: none;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 1.5rem;
+            height: 1.5rem;
+            border: 3px solid rgba(102, 126, 234, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--analytics-primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        /* Accessibility enhancements */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        
+        /* Focus management for keyboard navigation */
+        *:focus-visible {
+            outline: 2px solid var(--analytics-primary);
+            outline-offset: 2px;
+        }
+        
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            .analytics-card::after {
+                background: rgba(0, 0, 0, 0.8);
+            }
+            
+            .analytics-nav .nav-link::after {
+                background: rgba(0, 0, 0, 0.8);
+            }
+            
+            .analytics-nav .nav-link:hover::after,
+            .analytics-nav .nav-link.active::after {
+                background: rgba(255, 255, 255, 0.95);
+            }
+        }
+        
+        /* Reduced motion preferences */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .metric-trend {
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .trend-up {
+            color: #43e97b;
+        }
+        
+        .trend-down {
+            color: #f5576c;
+        }
+        
+        .trend-neutral {
+            color: rgba(255,255,255,0.9);
+        }
+        
+        .analytics-widget {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border: none;
+            transition: all 0.3s ease;
+        }
+        
+        .analytics-widget:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+        
+        .widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid transparent;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb, #43e97b) padding-box,
+                        linear-gradient(90deg, #667eea, #764ba2, #f093fb, #43e97b) border-box;
+            border-image: linear-gradient(90deg, #667eea, #764ba2, #f093fb, #43e97b) 1;
+        }
+        
+        .widget-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .widget-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-widget {
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-widget:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .top-items-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .top-items-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .top-items-list li:hover {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+            border-radius: 10px;
+            padding-left: 15px;
+            padding-right: 15px;
+        }
+        
+        .top-items-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .item-name {
+            font-weight: 600;
+            color: #495057;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .item-count {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            box-shadow: 0 3px 10px rgba(67, 233, 123, 0.3);
+        }
+        
+        .no-data {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 3rem;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+            border-radius: 15px;
+            border: 2px dashed rgba(102, 126, 234, 0.3);
+        }
+        
+        .no-data i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #667eea;
+        }
+        
+        .badge {
+            border-radius: 15px;
+            padding: 8px 15px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        
+        .badge.bg-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
+        }
+        
+        .badge.bg-success {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important;
+            box-shadow: 0 3px 10px rgba(67, 233, 123, 0.3);
+        }
+        
+        .badge.bg-info {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+            box-shadow: 0 3px 10px rgba(79, 172, 254, 0.3);
+        }
+        
+        .badge.bg-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+            box-shadow: 0 3px 10px rgba(240, 147, 251, 0.3);
+        }
+        
+        /* Specific color variations for different metrics */
+        .analytics-card.metric-1 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        }
+        
+        .analytics-card.metric-2 {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+        }
+        
+        .analytics-card.metric-3 {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+        }
+        
+        .analytics-card.metric-4 {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important;
+        }
+        
+        .analytics-card.metric-5 {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%) !important;
+        }
+        
+        .analytics-card.metric-6 {
+            background: linear-gradient(135deg, #fd79a8 0%, #e17055 100%) !important;
+        }
+        
+        .analytics-card.metric-7 {
+            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%) !important;
+        }
+        
+        .analytics-card.metric-8 {
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%) !important;
+        }
+        
+        @media (max-width: 768px) {
+            .metric-value {
+                font-size: 2rem;
+            }
+            
+            .chart-container {
+                height: 300px;
+            }
+            
+            .export-buttons {
+                justify-content: center;
+            }
+            
+            .analytics-nav .nav-link {
+                margin: 0.125rem;
+                padding: 0.5rem 0.75rem;
+            }
+            
+            .analytics-card {
+                margin-bottom: 1rem;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block extra_js %}
+    <!-- Flatpickr for date picking -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    
+    <script>
+        // Initialize date pickers
+        document.addEventListener('DOMContentLoaded', function() {
+            flatpickr('.date-picker', {
+                dateFormat: 'Y-m-d',
+                maxDate: 'today'
+            });
+            
+            // Auto-submit form when date changes
+            document.querySelectorAll('.date-picker').forEach(picker => {
+                picker.addEventListener('change', function() {
+                    this.closest('form').submit();
+                });
+            });
+        });
+        
+        // Utility functions for charts
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num.toString();
+        }
+        
+        function getRandomColor() {
+            const colors = [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF',
+                '#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56'
+            ];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+        
+        // Show loading spinner
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML = '<div class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading...</p></div>';
+            }
+        }
+        
+        // Hide loading spinner
+        function hideLoading(elementId, content) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML = content;
+            }
+        }
+        
+        // Export functionality
+        function exportData(type, format) {
+            window.open(`{% url 'analytics:export_data' %}?type=${type}&format=${format}`, '_blank');
+        }
+        
+        // Refresh chart data
+        function refreshChart(chartId, endpoint) {
+            showLoading(chartId + '-container');
+            
+            fetch(endpoint)
+                .then(response => response.json())
+                .then(data => {
+                    // Update chart with new data
+                    updateChart(chartId, data);
+                })
+                .catch(error => {
+                    console.error('Error refreshing chart:', error);
+                    hideLoading(chartId + '-container', '<div class="alert alert-danger">Error loading chart data</div>');
+                });
+        }
+    </script>
+{% endblock %}

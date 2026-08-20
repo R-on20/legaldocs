@@ -1,0 +1,42 @@
+/* Search highlighting */
+.search-highlights {
+    border-left: 3px solid #dee2e6;
+    padding-left: 10px;
+    margin-top: 8px;
+}
+
+.snippet {
+    margin-bottom: 8px;
+    font-size: 0.9em;
+    line-height: 1.5;
+}
+
+.snippet small {
+    color: #6c757d;
+    font-weight: 500;
+}
+
+mark {
+    background-color: #fff3cd;
+    padding: 0 2px;
+    border-radius: 3px;
+}
+
+mark.transcript {
+    background-color: #d1ecf1;
+}
+
+.document-title mark {
+    background-color: #d4edda;
+}
+
+/* PDF warning */
+.pdf-preview-warning {
+    border-left: 4px solid #ffc107;
+}
+
+/* DOCX viewer */
+.docx-viewer {
+    background: white;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}

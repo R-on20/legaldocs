@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        textarea { width: 100%; height: 200px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>ILDMS Upload Debug Test</h1>
+    
+    <div class="test-result info">
+        <strong>Server Status:</strong> 
+        <span id="server-status">Testing...</span>
+    </div>
+
+    <div class="test-result info">
+        <strong>Upload Endpoint:</strong> 
+        <span id="upload-endpoint">Testing...</span>
+    </div>
+
+    <div class="test-result info">
+        <strong>CSRF Token:</strong> 
+        <span id="csrf-status">Checking...</span>
+    </div>
+
+    <h2>Test Upload Form</h2>
+    <form id="testForm" enctype="multipart/form-data">
+        <div>
+            <label>Title: <input type="text" name="title" value="Debug Test Upload" required></label>
+        </div>
+        <div>
+            <label>Document Type: 
+                <select name="document_type" required>
+                    <option value="report">Report</option>
+                    <option value="memo">Memo</option>
+                    <option value="contract">Contract</option>
+                </select>
+            </label>
+        </div>
+        <div>
+            <label>Description: <textarea name="description">Testing upload functionality</textarea></label>
+        </div>
+        <div>
+            <label>File: <input type="file" name="file" accept=".txt,.doc,.docx,.pdf" required></label>
+        </div>
+        <div>
+            <button type="button" onclick="testUpload()">Test Upload</button>
+        </div>
+    </form>
+
+    <h2>Test Results</h2>
+    <textarea id="results" readonly>Waiting for tests...</textarea>
+
+    <script>
+        let results = document.getElementById('results');
+        let logMessage = (msg) => {
+            results.value += new Date().toLocaleTimeString() + ': ' + msg + '\n';
+        };
+
+        // Test server connectivity
+        fetch('/')
+            .then(response => {
+                document.getElementById('server-status').textContent = `✓ Connected (${response.status})`;
+                return response.text();
+            })
+            .catch(error => {
+                document.getElementById('server-status').textContent = `✗ Failed: ${error.message}`;
+            });
+
+        // Test upload endpoint
+        fetch('/upload/', {method: 'GET'})
+            .then(response => {
+                document.getElementById('upload-endpoint').textContent = `✓ Accessible (${response.status})`;
+                return response.text();
+            })
+            .then(html => {
+                // Try to extract CSRF token
+                const csrfMatch = html.match(/csrfmiddlewaretoken.*?value="([^"]+)"/);
+                if (csrfMatch) {
+                    document.getElementById('csrf-status').textContent = `✓ Token found: ${csrfMatch[1].substring(0, 10)}...`;
+                    window.csrfToken = csrfMatch[1];
+                } else {
+                    document.getElementById('csrf-status').textContent = '✗ No CSRF token found';
+                }
+            })
+            .catch(error => {
+                document.getElementById('upload-endpoint').textContent = `✗ Failed: ${error.message}`;
+            });
+
+        function testUpload() {
+            logMessage('Starting upload test...');
+            
+            const form = document.getElementById('testForm');
+            const formData = new FormData(form);
+            
+            // Add CSRF token if available
+            if (window.csrfToken) {
+                formData.append('csrfmiddlewaretoken', window.csrfToken);
+            }
+
+            // Create a test file if none selected
+            const fileInput = form.querySelector('input[type="file"]');
+            if (!fileInput.files.length) {
+                const testFile = new File(['This is a test file for debugging upload functionality.'], 'test-upload.txt', {
+                    type: 'text/plain'
+                });
+                formData.set('file', testFile);
+                logMessage('Created test file: test-upload.txt');
+            }
+
+            logMessage('Sending upload request...');
+            
+            fetch('/upload/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                logMessage(`Response status: ${response.status} ${response.statusText}`);
+                logMessage(`Content-Type: ${response.headers.get('content-type')}`);
+                return response.text();
+            })
+            .then(text => {
+                logMessage('Response received:');
+                logMessage('--- START RESPONSE ---');
+                logMessage(text.substring(0, 1000) + (text.length > 1000 ? '... (truncated)' : ''));
+                logMessage('--- END RESPONSE ---');
+                
+                // Try to parse as JSON
+                try {
+                    const json = JSON.parse(text);
+                    logMessage('Parsed as JSON:');
+                    logMessage(JSON.stringify(json, null, 2));
+                } catch (e) {
+                    logMessage('Response is not valid JSON');
+                }
+            })
+            .catch(error => {
+                logMessage(`Upload failed: ${error.message}`);
+                logMessage('Full error:');
+                logMessage(error.toString());
+            });
+        }
+
+        logMessage('Debug page loaded successfully');
+    </script>
+</body>
+</html>

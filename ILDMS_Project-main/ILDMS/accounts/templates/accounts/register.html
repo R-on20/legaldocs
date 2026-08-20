@@ -1,0 +1,138 @@
+<!-- accounts/templates/accounts/register.html -->
+{% extends "accounts/base_auth.html" %}
+{% block title %}Register{% endblock %}
+{% block subtitle %}Create your account{% endblock %}
+
+{% block content %}
+<form method="post" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            {% for error in form.non_field_errors %}
+                {{ error }}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% for field in form %}
+        <div class="mb-3 {% if field.name == 'bar_number' or field.name == 'specialization' %}lawyer-field{% endif %}">
+            <label for="{{ field.id_for_label }}" class="form-label">
+                {{ field.label }}
+                {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                {% if field.name == 'bar_number' %}<span class="lawyer-required text-danger" style="display: none;">*</span>{% endif %}
+            </label>
+
+            {{ field }}
+
+            {% if field.help_text %}
+                <small class="form-text text-muted">{{ field.help_text }}</small>
+            {% endif %}
+
+            {% if field.errors %}
+                <div class="invalid-feedback d-block">
+                    {% for error in field.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    {% endfor %}
+
+    <button type="submit" class="btn btn-primary w-100 py-2 mt-3">Register</button>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add Bootstrap's is-invalid class to fields with errors
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+        const inputs = form.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            if (input.nextElementSibling && input.nextElementSibling.classList.contains('invalid-feedback')) {
+                input.classList.add('is-invalid');
+            }
+        });
+    });
+
+    // Handle role-specific field visibility
+    const roleField = document.getElementById('id_role');
+    const lawyerFields = document.querySelectorAll('.lawyer-field');
+    const lawyerRequired = document.querySelectorAll('.lawyer-required');
+    const barNumberField = document.getElementById('id_bar_number');
+
+    function toggleLawyerFields() {
+        const isLawyer = roleField.value === 'LAWYER';
+        
+        lawyerFields.forEach(field => {
+            field.style.display = isLawyer ? 'block' : 'none';
+        });
+        
+        lawyerRequired.forEach(req => {
+            req.style.display = isLawyer ? 'inline' : 'none';
+        });
+
+        if (barNumberField) {
+            barNumberField.required = isLawyer;
+            if (!isLawyer) {
+                barNumberField.value = '';
+            }
+        }
+    }
+
+    if (roleField) {
+        roleField.addEventListener('change', toggleLawyerFields);
+        toggleLawyerFields(); // Initial call
+    }
+
+    // Password strength meter
+    const password1 = document.getElementById('id_password1');
+    if (password1) {
+        const strengthMeter = document.createElement('div');
+        strengthMeter.className = 'password-strength mt-2';
+        password1.parentNode.appendChild(strengthMeter);
+
+        password1.addEventListener('input', function() {
+            const strength = checkPasswordStrength(this.value);
+            updateStrengthMeter(strength);
+        });
+
+        function checkPasswordStrength(password) {
+            let strength = 0;
+
+            // Length >= 8
+            if (password.length >= 8) strength += 1;
+
+            // Contains lowercase
+            if (/[a-z]/.test(password)) strength += 1;
+
+            // Contains uppercase
+            if (/[A-Z]/.test(password)) strength += 1;
+
+            // Contains number
+            if (/[0-9]/.test(password)) strength += 1;
+
+            // Contains special char
+            if (/[^A-Za-z0-9]/.test(password)) strength += 1;
+
+            return strength;
+        }
+
+        function updateStrengthMeter(strength) {
+            const colors = ['danger', 'danger', 'warning', 'info', 'success'];
+            const texts = ['Very Weak', 'Weak', 'Moderate', 'Strong', 'Very Strong'];
+
+            strengthMeter.innerHTML = `
+                <div class="progress" style="height: 5px;">
+                    <div class="progress-bar bg-${colors[strength]}"
+                         role="progressbar"
+                         style="width: ${(strength + 1) * 20}%">
+                    </div>
+                </div>
+                <small class="text-${colors[strength]}">${texts[strength] || ''}</small>
+            `;
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,367 @@
+{% extends 'analytics/base.html' %}
+{% load static %}
+
+{% block title %}Search Analytics - ILDMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="bi bi-search"></i> Search Analytics
+                    </h1>
+                    <p class="text-muted mb-0">Analyze search patterns and popular content</p>
+                </div>
+                <div class="export-buttons">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportData('searches', 'csv')">
+                        <i class="bi bi-download"></i> Export Search Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Navigation -->
+    <nav class="analytics-nav">
+        <div class="nav nav-pills p-3" role="tablist">
+            <a class="nav-link" href="{% url 'analytics:dashboard' %}">
+                <i class="bi bi-speedometer2"></i> Overview
+            </a>
+            <a class="nav-link active" href="{% url 'analytics:search_analytics' %}">
+                <i class="bi bi-search"></i> Search Analytics
+            </a>
+            <a class="nav-link" href="{% url 'analytics:user_analytics' %}">
+                <i class="bi bi-people"></i> User Analytics
+            </a>
+        </div>
+    </nav>
+
+    <!-- Date Range Filter -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="date-range-picker">
+                <form method="get" class="row g-3 align-items-center">
+                    <div class="col-auto">
+                        <label class="form-label mb-0">Date Range:</label>
+                    </div>
+                    <div class="col-auto">
+                        <input type="date" name="start_date" class="form-control date-picker" 
+                               value="{{ start_date|date:'Y-m-d' }}" max="{{ end_date|date:'Y-m-d' }}">
+                    </div>
+                    <div class="col-auto">
+                        <span>to</span>
+                    </div>
+                    <div class="col-auto">
+                        <input type="date" name="end_date" class="form-control date-picker" 
+                               value="{{ end_date|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}">
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-funnel"></i> Apply Filter
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Metrics Row -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card analytics-card metric-1 h-100">
+                <div class="card-body text-center">
+                    <div class="metric-value">{{ total_searches }}</div>
+                    <div class="metric-label">Total Searches</div>
+                    <div class="metric-trend trend-up mt-2">
+                        <i class="bi bi-search"></i>
+                        <span>In selected period</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card analytics-card metric-2 h-100">
+                <div class="card-body text-center">
+                    <div class="metric-value">{{ unique_users }}</div>
+                    <div class="metric-label">Unique Searchers</div>
+                    <div class="metric-trend trend-neutral mt-2">
+                        <i class="bi bi-people"></i>
+                        <span>Different users</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card analytics-card metric-3 h-100">
+                <div class="card-body text-center">
+                    <div class="metric-value">{{ avg_results|floatformat:1 }}</div>
+                    <div class="metric-label">Avg Results</div>
+                    <div class="metric-trend trend-neutral mt-2">
+                        <i class="bi bi-list-ul"></i>
+                        <span>Per search</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card analytics-card metric-4 h-100">
+                <div class="card-body text-center">
+                    <div class="metric-value">
+                        {{ success_rate }}%
+                    </div>
+                    <div class="metric-label">Search Success Rate</div>
+                    <div class="metric-trend trend-up mt-2">
+                        <i class="bi bi-check-circle"></i>
+                        <span>Estimation</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Analysis Row -->
+    <div class="row mb-4">
+        <!-- Top Search Terms -->
+        <div class="col-lg-6 mb-4">
+            <div class="analytics-widget">
+                <div class="widget-header">
+                    <h5 class="widget-title">
+                        <i class="bi bi-graph-up"></i> Top Search Terms
+                    </h5>
+                    <span class="badge bg-primary">{{ start_date|date:'M d' }} - {{ end_date|date:'M d' }}</span>
+                </div>
+                <div class="widget-content">
+                    {% if top_search_terms %}
+                        <ul class="top-items-list">
+                            {% for term, count in top_search_terms %}
+                            <li>
+                                <span class="item-name">"{{ term }}"</span>
+                                <span class="item-count">{{ count }} searches</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="no-data">
+                            <i class="bi bi-info-circle"></i>
+                            No search terms found in selected period
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Search Types Distribution -->
+        <div class="col-lg-6 mb-4">
+            <div class="analytics-widget">
+                <div class="widget-header">
+                    <h5 class="widget-title">
+                        <i class="bi bi-pie-chart"></i> Search Types
+                    </h5>
+                </div>
+                <div class="widget-content">
+                    {% if search_types %}
+                        <div class="chart-container small-chart">
+                            <canvas id="searchTypesChart"></canvas>
+                        </div>
+                    {% else %}
+                        <div class="no-data">
+                            <i class="bi bi-info-circle"></i>
+                            No search data available
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Insights Row -->
+    <div class="row mb-4">
+        <!-- Search Performance Widget -->
+        <div class="col-lg-8 mb-4">
+            <div class="analytics-widget">
+                <div class="widget-header">
+                    <h5 class="widget-title">
+                        <i class="bi bi-speedometer"></i> Search Performance Insights
+                    </h5>
+                </div>
+                <div class="widget-content">
+                    <div class="row">
+                        <div class="col-md-4 text-center mb-3">
+                            <div class="metric-value text-success" style="font-size: 2rem;">
+                                {{ search_engagement }}%
+                            </div>
+                            <div class="metric-label">Search Engagement</div>
+                            <small class="text-muted">Searches per day ratio</small>
+                        </div>
+                        <div class="col-md-4 text-center mb-3">
+                            <div class="metric-value text-info" style="font-size: 2rem;">
+                                {{ searches_per_user }}
+                            </div>
+                            <div class="metric-label">Searches per User</div>
+                            <small class="text-muted">Average in period</small>
+                        </div>
+                        <div class="col-md-4 text-center mb-3">
+                            <div class="metric-value text-warning" style="font-size: 2rem;">
+                                {% if top_search_terms %}
+                                    {{ top_search_terms.0.1 }}
+                                {% else %}
+                                    0
+                                {% endif %}
+                            </div>
+                            <div class="metric-label">Top Term Usage</div>
+                            <small class="text-muted">Most popular term</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Search Widget -->
+        <div class="col-lg-4 mb-4">
+            <div class="analytics-widget">
+                <div class="widget-header">
+                    <h5 class="widget-title">
+                        <i class="bi bi-lightning"></i> Live Search Trends
+                    </h5>
+                    <button class="btn btn-widget btn-outline-primary btn-sm" onclick="loadLiveSearchTerms()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+                <div class="widget-content" id="liveSearchTerms">
+                    <div class="text-center">
+                        <div class="loading-spinner"></div>
+                        <p class="mt-2">Loading recent search terms...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Recommendations -->
+    <div class="row">
+        <div class="col-12">
+            <div class="analytics-widget">
+                <div class="widget-header">
+                    <h5 class="widget-title">
+                        <i class="bi bi-lightbulb"></i> Search Optimization Recommendations
+                    </h5>
+                </div>
+                <div class="widget-content">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">Popular Search Patterns</h6>
+                            <ul class="list-unstyled">
+                                {% if top_search_terms %}
+                                    {% for term, count in top_search_terms|slice:":5" %}
+                                    <li class="mb-2">
+                                        <i class="bi bi-arrow-right text-muted"></i>
+                                        <strong>"{{ term }}"</strong> - Consider adding related content or tags
+                                        <small class="text-muted">({{ count }} searches)</small>
+                                    </li>
+                                    {% endfor %}
+                                {% else %}
+                                    <li class="text-muted">No search patterns to analyze yet</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-success">Optimization Tips</h6>
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    Add auto-complete suggestions for popular terms
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    Create content for frequently searched topics
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    Improve document tagging for better findability
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    Monitor zero-result searches for content gaps
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Search Types Chart if data exists
+    {% if search_types %}
+    const searchTypesData = {
+        labels: [{% for st in search_types %}'{{ st.query_type|capfirst }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+            data: [{% for st in search_types %}{{ st.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+            backgroundColor: [
+                '#0d6efd', '#6f42c1', '#198754', '#dc3545',
+                '#fd7e14', '#20c997', '#6610f2', '#6c757d'
+            ]
+        }]
+    };
+    
+    const ctx = document.getElementById('searchTypesChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: searchTypesData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    {% endif %}
+    
+    // Load live search terms on page load
+    loadLiveSearchTerms();
+});
+
+function loadLiveSearchTerms() {
+    fetch('{% url "analytics:top_search_terms_api" %}?days=7')
+        .then(response => response.json())
+        .then(data => {
+            let html = '';
+            if (data.top_terms && data.top_terms.length > 0) {
+                html = '<h6 class="mb-3">Last 7 Days</h6>';
+                html += '<ul class="top-items-list">';
+                data.top_terms.slice(0, 5).forEach(term => {
+                    html += `
+                        <li>
+                            <span class="item-name">"${term.term}"</span>
+                            <span class="item-count">${term.count}</span>
+                        </li>
+                    `;
+                });
+                html += '</ul>';
+                html += `<small class="text-muted">Total: ${data.total_searches} searches</small>`;
+            } else {
+                html = '<div class="no-data"><i class="bi bi-info-circle"></i> No recent search activity</div>';
+            }
+            
+            document.getElementById('liveSearchTerms').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading live search terms:', error);
+            document.getElementById('liveSearchTerms').innerHTML = 
+                '<div class="alert alert-warning">Unable to load live search data</div>';
+        });
+}
+</script>
+{% endblock %}

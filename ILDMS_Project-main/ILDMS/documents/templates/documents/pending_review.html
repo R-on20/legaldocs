@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Pending Review - Legal DMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="bi bi-clock-history text-warning"></i>
+                Documents Pending Review
+            </h2>
+            <p class="text-muted mb-0">{{ total_pending }} document{{ total_pending|pluralize }} awaiting review</p>
+        </div>
+        <div>
+            <a href="{% url 'documents:document_list' %}" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left"></i> All Documents
+            </a>
+        </div>
+    </div>
+
+    {% if documents %}
+    <!-- Documents Grid -->
+    <div class="row g-4">
+        {% for document in documents %}
+        <div class="col-lg-4 col-md-6">
+            <div class="card h-100 shadow-sm border-warning border-start border-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h5 class="card-title mb-0">
+                            {% if request.GET.q %}
+                            <a href="{% url 'documents:document_detail' document.pk %}?q={{ request.GET.q|urlencode }}" class="text-decoration-none">
+                                {{ document.title|truncatechars:40 }}
+                            </a>
+                            {% else %}
+                            <a href="{% url 'documents:document_detail' document.pk %}" class="text-decoration-none">
+                                {{ document.title|truncatechars:40 }}
+                            </a>
+                            {% endif %}
+                        </h5>
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-clock"></i> Review
+                        </span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            <i class="bi bi-file-earmark"></i> {{ document.get_document_type_display }}
+                        </small>
+                        <br>
+                        <small class="text-muted">
+                            <i class="bi bi-person"></i> {{ document.uploaded_by.get_full_name|default:document.uploaded_by.username }}
+                        </small>
+                        <br>
+                        <small class="text-muted">
+                            <i class="bi bi-calendar"></i> {{ document.uploaded_at|date:"M d, Y" }}
+                        </small>
+                    </div>
+                    
+                    {% if document.description %}
+                    <p class="card-text text-muted small">
+                        {{ document.description|truncatechars:100 }}
+                    </p>
+                    {% endif %}
+                    
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'documents:document_detail' document.pk %}" class="btn btn-sm btn-primary">
+                            <i class="bi bi-eye"></i> View
+                        </a>
+                        {% if perms.documents.change_document %}
+                        <a href="{% url 'documents:document_update' document.pk %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-pencil"></i> Edit
+                        </a>
+                        {% endif %}
+                        <a href="{{ document.file.url }}" class="btn btn-sm btn-success" download>
+                            <i class="bi bi-download"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                {% if document.tags.all %}
+                <div class="card-footer bg-transparent">
+                    {% for tag in document.tags.all %}
+                        <span class="badge bg-light text-dark me-1">{{ tag.name }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav aria-label="Pending review pagination" class="mt-5">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1" aria-label="First">
+                        <i class="bi bi-chevron-double-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active" aria-current="page">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" aria-label="Last">
+                        <i class="bi bi-chevron-double-right"></i>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <!-- No documents -->
+    <div class="text-center py-5">
+        <div class="mb-4">
+            <i class="bi bi-check-circle display-1 text-success"></i>
+        </div>
+        <h3 class="text-muted">No Documents Pending Review</h3>
+        <p class="text-muted">All documents have been reviewed or there are no documents in the system.</p>
+        <div class="mt-4">
+            <a href="{% url 'documents:document_list' %}" class="btn btn-primary me-2">
+                <i class="bi bi-files"></i> Browse All Documents
+            </a>
+            {% if perms.documents.add_document %}
+            <a href="{% url 'documents:document_upload' %}" class="btn btn-outline-primary">
+                <i class="bi bi-cloud-upload"></i> Upload Document
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.border-start {
+    border-left-width: 3px !important;
+}
+
+.card {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+.btn-sm {
+    font-size: 0.8rem;
+}
+</style>
+{% endblock %}

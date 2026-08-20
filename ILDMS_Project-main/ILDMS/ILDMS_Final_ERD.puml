@@ -1,0 +1,273 @@
+@startuml ILDMS_Comprehensive_ERD
+
+!theme spacelab
+skinparam backgroundColor white
+skinparam defaultFontSize 9
+skinparam classAttributeFontSize 8
+skinparam classFontStyle bold
+skinparam linetype ortho
+skinparam nodesep 20
+skinparam ranksep 30
+skinparam roundcorner 8
+skinparam shadowing false
+
+title **ILDMS - Integrated Legal Document Management System**\n**Comprehensive Entity Relationship Diagram**
+
+' User Management System
+entity User {
+  **Primary Key**
+  + id : Integer
+  ==
+  **Django Auth Fields**
+  username : String (unique, max_length=150)
+  email : String (unique, EmailField)
+  first_name : String (max_length=150)
+  last_name : String (max_length=150)
+  password : String (hashed)
+  is_active : Boolean (default=True)
+  is_staff : Boolean (default=False)
+  is_superuser : Boolean (default=False)
+  date_joined : DateTime (auto_now_add)
+  last_login : DateTime (nullable)
+  ==
+  **Custom Fields**
+  role : Enum {LAWYER, SENIOR_PARALEGAL, PARALEGAL, CLIENT, ADMIN}
+  phone : String (max_length=20, regex_validated) 📱
+  is_verified : Boolean (default=False, email verification) ✉
+  last_updated : DateTime (auto_now)
+  bar_number : String (max_length=50, required for lawyers) ⚖️
+  specialization : String (max_length=100, legal area)
+  last_login_ip : GenericIPAddressField 🌐
+  ==
+  **Constraints**
+  • Username must be unique
+  • Email must be unique and verified
+  • Lawyers must provide bar_number
+  • Phone regex: +?1?d{9,15}
+  • Auto-assign staff status for certain roles
+}
+
+' Document Management Core
+entity Document {
+  **Primary Key**
+  + id : Integer
+  ==
+  **Core Document Info**
+  title : String (max_length=255, validated 3-255 chars) 📄
+  document_type : Enum {CONSTITUTION, BILL, ACT, LEGAL_NOTICE, 
+                        PRACTICE_NOTE, TREATY, CASE_LAW, CONTRACT,
+                        COURT_FILING, CORRESPONDENCE, RESEARCH, 
+                        AUDIO, VIDEO, OTHER}
+  status : Enum {DRAFT, REVIEW, APPROVED, ARCHIVED}
+  description : Text (max_length=2000, optional)
+  confidential : Boolean (default=False) 🔒
+  editable : Boolean (default=False, Word docs only)
+  ==
+  **File Management**
+  file : FileField (validated extensions, max 500MB) 📁
+  pdf_file : FileField (auto-generated PDF version) 📋
+  ==
+  **Content Processing**
+  content : Text (extracted text content) 📝
+  html_content : Text (rich text for editing) 🌐
+  audio_transcript : Text (Whisper AI transcription) 🎤
+  search_vector : SearchVectorField (PostgreSQL FTS) 🔍
+  ==
+  **Archival System**
+  is_archived : Boolean (default=False, soft delete)
+  archived_at : DateTime (nullable)
+  ==
+  **Timestamps**
+  uploaded_at : DateTime (auto_now_add)
+  modified_at : DateTime (auto_now)
+  ==
+  **Foreign Keys**
+  uploaded_by_id → User (PROTECT, required)
+  reviewed_by_id → User (SET_NULL, optional)
+  archived_by_id → User (SET_NULL, optional)
+  ==
+  **Constraints**
+  • Title: 3-255 chars, XSS protected
+  • File types: PDF, DOCX, DOC, PPT, XLS, MP3, WAV, MP4, MOV, TXT, MD
+  • Max file size: 500MB absolute limit
+  • Confidential docs require special permissions
+}
+
+' Version Control System
+entity DocumentVersion {
+  **Primary Key**
+  + id : Integer
+  ==
+  **Version Info**
+  version_number : PositiveInteger (unique per document)
+  file : FileField (version-specific file)
+  changes : Text (change description, optional)
+  approved : Boolean (default=False, approval workflow) ✓
+  created_at : DateTime (default=now)
+  ==
+  **Foreign Keys**
+  document_id → Document (CASCADE, required)
+  created_by_id → User (PROTECT, required)
+  ==
+  **Constraints**
+  • Unique together: (document, version_number)
+  • Version number must be >= 1
+  • Approval workflow for legal compliance
+}
+
+' Tagging & Classification
+entity Tag {
+  **Primary Key**
+  + id : Integer
+  ==
+  **Tag Properties**
+  name : String (max_length=50, unique) 🏷️
+  is_system : Boolean (default=False, system vs user tags)
+  created_at : DateTime (default=now)
+  ==
+  **Foreign Keys**
+  created_by_id → User (PROTECT, required)
+  ==
+  **Constraints**
+  • Tag names must be unique
+  • System tags for document classification
+  • User tags for personal organization
+}
+
+' Many-to-Many: Document Tags
+entity DocumentTag {
+  + document_id : Integer (FK → Document)
+  + tag_id : Integer (FK → Tag)
+  ==
+  **Relationship Properties**
+  • Many-to-many association
+  • No additional attributes
+  • Cascade delete with document/tag
+}
+
+' Comprehensive Audit System
+entity AuditLog {
+  **Primary Key**
+  + id : Integer
+  ==
+  **Action Tracking**
+  action : Enum {CREATE, UPDATE, VIEW, DOWNLOAD, APPROVE, REJECT,
+                 SUBMIT_REVIEW, VERSION_CREATE, CONTENT_EDIT,
+                 STATUS_CHANGE, ARCHIVE, RESTORE, DELETE, SHARE,
+                 PERMISSION_CHANGE}
+  timestamp : DateTime (auto_now_add, indexed)
+  ==
+  **Document Reference** (for deleted docs)
+  document_id : PositiveInteger (nullable, soft reference)
+  document_title : String (max_length=255, snapshot)
+  document_type : String (max_length=20, snapshot)
+  ==
+  **Session & Security**
+  ip_address : GenericIPAddressField (client IP) 🌐
+  user_agent : Text (browser info)
+  session_key : String (max_length=40, session tracking)
+  additional_info : JSONField (flexible metadata) 📊
+  ==
+  **Foreign Keys**
+  user_id → User (SET_NULL, nullable for system actions)
+  ==
+  **Constraints**
+  • All document actions logged
+  • Immutable audit trail
+  • Compliance & forensic ready
+  • Indexed for performance
+}
+
+' Email Verification System
+entity EmailVerificationToken {
+  **Primary Key**
+  + id : Integer
+  ==
+  **Token Management**
+  token : String (max_length=64, unique, hex-generated) 🔑
+  created_at : DateTime (auto_now_add)
+  expires_at : DateTime (24-hour expiry)
+  ==
+  **Foreign Keys**
+  user_id → User (CASCADE, required)
+  ==
+  **Constraints**
+  • Tokens expire after 24 hours
+  • Unique token per generation
+  • Cascade delete with user
+  • Security: hex-based random tokens
+}
+
+' Document Templates
+entity DocumentTemplate {
+  **Primary Key**
+  + id : Integer
+  ==
+  **Template Properties**
+  name : String (max_length=100, template identifier) �
+  content : RichTextField (CKEditor content) ✏️
+  created_at : DateTime (auto_now_add)
+  updated_at : DateTime (auto_now)
+  ==
+  **Constraints**
+  • Rich text content for legal templates
+  • Reusable document structures
+  • CKEditor integration for formatting
+}
+
+' Relationships with detailed cardinalities
+User ||--o{ Document : "uploads (1 user → 0..* documents)"
+User ||--o{ Document : "reviews (1 user → 0..* documents)"
+User ||--o{ Document : "archives (1 user → 0..* documents)"
+User ||--o{ DocumentVersion : "creates (1 user → 0..* versions)"
+User ||--o{ Tag : "creates (1 user → 0..* tags)"
+User ||--o{ AuditLog : "generates (1 user → 0..* logs)"
+User ||--o{ EmailVerificationToken : "verifies (1 user → 0..* tokens)"
+
+Document ||--o{ DocumentVersion : "versions (1 doc → 0..* versions)"
+Document ||--o{ DocumentTag : "tagged (1 doc → 0..* tags)"
+Document ||--o{ AuditLog : "audited (1 doc → 0..* logs)"
+
+Tag ||--o{ DocumentTag : "applied (1 tag → 0..* docs)"
+DocumentTag }o--|| Document
+DocumentTag }o--|| Tag
+
+' Security & Business Rules
+note as SecurityRules
+  **🔐 Security & Access Control**
+  • Role-based permissions (LAWYER > SENIOR_PARALEGAL > PARALEGAL > CLIENT)
+  • Confidential documents require special permissions
+  • All file uploads validated for type, size, and content
+  • XSS and injection protection on all text fields
+  • Email verification required for account activation
+  • Session security with IP tracking
+end note
+
+note as BusinessRules
+  **📋 Business Rules & Compliance**
+  • Document versioning with approval workflow
+  • Comprehensive audit trail (GDPR/SOX compliant)
+  • Soft delete with archival system
+  • Full-text search with PostgreSQL
+  • AI transcription for audio/video content
+  • PDF auto-generation for Word documents
+  • File size limits: Documents(50MB), Audio(100MB), Video(500MB)
+end note
+
+note as TechnicalFeatures
+  **⚙️ Technical Features**
+  • PostgreSQL full-text search with GIN indexes
+  • OpenAI Whisper integration for transcription
+  • CKEditor for rich text editing
+  • Django's built-in authentication system
+  • File validation with python-magic
+  • Automatic content extraction (PDF, DOCX)
+  • Background processing for large files
+end note
+
+' Position notes
+User .. SecurityRules
+Document .. BusinessRules
+AuditLog .. TechnicalFeatures
+
+@enduml

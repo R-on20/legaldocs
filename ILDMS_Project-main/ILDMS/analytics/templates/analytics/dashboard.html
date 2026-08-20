@@ -1,0 +1,465 @@
+{% extends 'analytics/base.html' %}
+{% load static %}
+
+{% block title %}Analytics Dashboard - ILDMS{% endblock %}
+
+{% block analytics_header %}
+    <h1>Analytics Dashboard</h1>
+    <p>Comprehensive insights into your document management system</p>
+{% endblock %}
+
+{% block analytics_content %}
+    <!-- Export Buttons -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="export-buttons">
+                <button type="button" class="btn-analytics btn-accent" onclick="exportData('documents', 'csv')">
+                    <i class="bi bi-download me-2"></i> Export CSV
+                </button>
+                <button type="button" class="btn-analytics btn-success" onclick="exportData('documents', 'pdf')">
+                    <i class="bi bi-file-pdf me-2"></i> Export PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Range Filter -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="date-range-picker">
+                <form method="get" class="row g-3 align-items-center">
+                    <div class="col-auto">
+                        <label class="form-label mb-0">Date Range:</label>
+                    </div>
+                    <div class="col-auto">
+                        <input type="date" name="start_date" class="form-control date-picker" 
+                               value="{{ start_date|date:'Y-m-d' }}" max="{{ end_date|date:'Y-m-d' }}">
+                    </div>
+                    <div class="col-auto">
+                        <span>to</span>
+                    </div>
+                    <div class="col-auto">
+                        <input type="date" name="end_date" class="form-control date-picker" 
+                               value="{{ end_date|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}">
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn-analytics">
+                            <i class="bi bi-funnel me-2"></i> Apply Filter
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Row -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="analytics-card primary h-100">
+                <div class="card-body text-center position-relative">
+                    <i class="bi bi-file-earmark stat-icon"></i>
+                    <div class="metric-value">{{ total_documents }}</div>
+                    <div class="metric-label">Total Documents</div>
+                    <div class="mt-2 text-muted">
+                        <small>{{ active_documents }} active</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="analytics-card success h-100">
+                <div class="card-body text-center position-relative">
+                    <i class="bi bi-people stat-icon"></i>
+                    <div class="metric-value">{{ total_users }}</div>
+                    <div class="metric-label">Total Users</div>
+                    <div class="mt-2 text-muted">
+                        <small>System wide</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="analytics-card warning h-100">
+                <div class="card-body text-center position-relative">
+                    <i class="bi bi-calendar-week stat-icon"></i>
+                    <div class="metric-value">{{ docs_this_week }}</div>
+                    <div class="metric-label">This Week</div>
+                    <div class="mt-2 text-muted">
+                        <small>New uploads</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="analytics-card accent h-100">
+                <div class="card-body text-center position-relative">
+                    <i class="bi bi-calendar-month stat-icon"></i>
+                    <div class="metric-value">{{ docs_this_month }}</div>
+                    <div class="metric-label">This Month</div>
+                    <div class="mt-2 text-muted">
+                        <small>New uploads</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <!-- Daily Activity Trends - Now Featured -->
+        <div class="col-lg-8 mb-4">
+            <div class="chart-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">
+                        <i class="bi bi-activity me-2"></i> Daily Activity Trends
+                    </h5>
+                    <div class="chart-actions d-flex gap-2">
+                        <div class="date-range-mini">
+                            <select id="activityDateRange" class="form-select form-select-sm" onchange="updateActivityChart()">
+                                <option value="7">Last 7 days</option>
+                                <option value="14">Last 14 days</option>
+                                <option value="30">Last 30 days</option>
+                            </select>
+                        </div>
+                        <button class="btn-analytics" onclick="refreshChart('dailyActivity', '{% url 'analytics:chart_data' %}?type=daily_activity&days=7')">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-content" id="dailyActivity-container">
+                    <canvas id="dailyActivityChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Document Types Distribution -->
+        <div class="col-lg-4 mb-4">
+            <div class="analytics-widget">
+                <div class="widget-header">
+                    <h5 class="widget-title">
+                        <i class="bi bi-pie-chart"></i> Document Types
+                    </h5>
+                </div>
+                <div class="chart-container small-chart" id="documentTypes-container">
+                    <canvas id="documentTypesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Analysis Row -->
+    <div class="row mb-4">
+        <!-- Top Documents -->
+        <div class="col-lg-6 mb-4">
+            <div class="analytics-widget">
+                <div class="widget-header">
+                    <h5 class="widget-title">
+                        <i class="bi bi-eye"></i> Most Viewed Documents
+                    </h5>
+                    <span class="badge bg-primary">{{ start_date|date:'M d' }} - {{ end_date|date:'M d' }}</span>
+                </div>
+                <div class="widget-content">
+                    {% if most_viewed_documents %}
+                        <ul class="top-items-list">
+                            {% for doc in most_viewed_documents %}
+                            <li>
+                                <span class="item-name">{{ doc.document_title|truncatechars:40 }}</span>
+                                <span class="item-count">{{ doc.view_count }} views</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="no-data">
+                            <i class="bi bi-info-circle"></i>
+                            No document views in selected period
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Most Active Users -->
+        <div class="col-lg-6 mb-4">
+            <div class="analytics-widget">
+                <div class="widget-header">
+                    <h5 class="widget-title">
+                        <i class="bi bi-person-check"></i> Most Active Users
+                    </h5>
+                    <span class="badge bg-success">{{ start_date|date:'M d' }} - {{ end_date|date:'M d' }}</span>
+                </div>
+                <div class="widget-content">
+                    {% if most_active_users %}
+                        <ul class="top-items-list">
+                            {% for user in most_active_users %}
+                            <li>
+                                <span class="item-name">
+                                    {{ user.get_full_name|default:user.username }}
+                                    <small class="text-muted d-block">{{ user.email }}</small>
+                                </span>
+                                <span class="item-count">{{ user.upload_count }} uploads</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="no-data">
+                            <i class="bi bi-info-circle"></i>
+                            No user activity in selected period
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Charts Row -->
+    <div class="row mb-4">
+        <!-- User Upload Distribution - Now Full Width -->
+        <div class="col-lg-12 mb-4">
+            <div class="analytics-widget">
+                <div class="widget-header">
+                    <h5 class="widget-title">
+                        <i class="bi bi-person-plus"></i> User Upload Distribution
+                    </h5>
+                    <small class="text-muted">Upload activity by users in selected period</small>
+                </div>
+                <div class="chart-container" id="userUploads-container">
+                    <canvas id="userUploadsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row">
+        <div class="col-12">
+            <div class="analytics-widget">
+                <div class="widget-header">
+                    <h5 class="widget-title">
+                        <i class="bi bi-clipboard-data"></i> Document Type Summary
+                    </h5>
+                </div>
+                <div class="row">
+                    {% for doc_type in document_types %}
+                    <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                        <div class="analytics-card {% cycle 'primary' 'success' 'accent' 'warning' 'danger' 'primary' 'success' 'accent' %} h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-file-earmark stat-icon"></i>
+                                <div class="metric-value">{{ doc_type.count }}</div>
+                                <div class="metric-label">{{ doc_type.document_type|title }}</div>
+                                <div class="mt-2">
+                                    <span class="badge bg-light text-dark">
+                                        <i class="bi bi-file-earmark me-1"></i> Documents
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <div class="no-data">
+                            <i class="bi bi-info-circle"></i>
+                            <h5>No Documents Found</h5>
+                            <p>No documents are available in the system yet.</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Analytics dashboard initializing...');
+
+    // Function to load daily activity chart with specified date range
+    function loadDailyActivityChart(days = 7) {
+        console.log(`Loading daily activity chart for ${days} days...`);
+        
+        fetch(`{% url "analytics:chart_data" %}?type=daily_activity&days=${days}`)
+            .then(response => {
+                console.log('Daily activity response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Daily activity data received:', data);
+                const ctx = document.getElementById('dailyActivityChart');
+                
+                if (!ctx) {
+                    console.error('dailyActivityChart canvas not found');
+                    return;
+                }
+                
+                // Destroy existing chart if it exists
+                if (window.dailyActivityChartInstance) {
+                    window.dailyActivityChartInstance.destroy();
+                }
+                
+                window.dailyActivityChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels || [],
+                        datasets: data.datasets || []
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: true },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#ffffff',
+                                bodyColor: '#ffffff',
+                                cornerRadius: 6
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: '#6c757d' },
+                                grid: { color: 'rgba(0,0,0,0.1)' }
+                            },
+                            x: {
+                                ticks: { color: '#495057' },
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error loading daily activity chart:', error);
+            });
+    }
+
+    // Initialize Document Types Chart
+    function loadDocumentTypesChart() {
+        fetch('{% url "analytics:chart_data" %}?type=document_types')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Document types data:', data);
+                const ctx = document.getElementById('documentTypesChart');
+                
+                if (!ctx) {
+                    console.error('documentTypesChart canvas not found');
+                    return;
+                }
+                
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.labels || [],
+                        datasets: [{
+                            data: data.datasets[0]?.data || [],
+                            backgroundColor: ['#2c3e50', '#3498db', '#27ae60', '#e74c3c', '#f39c12', '#9b59b6'],
+                            borderColor: '#ffffff',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    usePointStyle: true,
+                                    font: { size: 12, weight: 'bold' },
+                                    color: '#495057',
+                                    padding: 20
+                                }
+                            }
+                        },
+                        cutout: '60%'
+                    }
+                });
+            })
+            .catch(error => console.error('Error loading document types chart:', error));
+    }
+
+    // Initialize User Uploads Chart
+    function loadUserUploadsChart() {
+        fetch('{% url "analytics:chart_data" %}?type=documents_per_user')
+            .then(response => response.json())
+            .then(data => {
+                console.log('User uploads data:', data);
+                const ctx = document.getElementById('userUploadsChart');
+                
+                if (!ctx) {
+                    console.error('userUploadsChart canvas not found');
+                    return;
+                }
+                
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels || [],
+                        datasets: [{
+                            label: 'Documents Uploaded',
+                            data: data.datasets[0]?.data || [],
+                            backgroundColor: ['#0d6efd', '#6f42c1', '#198754', '#dc3545', '#fd7e14', '#20c997'],
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#495057', maxRotation: 45 }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(0, 0, 0, 0.1)' },
+                                ticks: { color: '#6c757d' }
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => console.error('Error loading user uploads chart:', error));
+    }
+
+    // Initialize all charts
+    loadDailyActivityChart(7);
+    loadDocumentTypesChart();
+    loadUserUploadsChart();
+
+    // Make functions available globally for refresh buttons
+    window.loadDailyActivityChart = loadDailyActivityChart;
+    window.updateActivityChart = function() {
+        const selectElement = document.getElementById('activityDateRange');
+        const days = selectElement ? selectElement.value : 7;
+        loadDailyActivityChart(parseInt(days));
+    };
+
+    window.refreshChart = function(chartId, url) {
+        console.log(`Refreshing chart: ${chartId}`);
+        if (chartId === 'dailyActivity') {
+            const selectElement = document.getElementById('activityDateRange');
+            const days = selectElement ? selectElement.value : 7;
+            loadDailyActivityChart(parseInt(days));
+        }
+    };
+
+    console.log('Analytics dashboard initialization complete');
+});
+
+// Export data function
+function exportData(type, format) {
+    const url = `{% url 'analytics:export_data' %}?type=${type}&format=${format}`;
+    window.open(url, '_blank');
+}
+</script>
+{% endblock %}

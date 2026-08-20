@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_head %}
+<script src="{% static 'ckeditor/ckeditor-init.js' %}"></script>
+<script src="{% static 'ckeditor/ckeditor/ckeditor.js' %}"></script>
+<style>
+    .document-editor {
+        min-height: 600px;
+    }
+    
+    .editor-toolbar {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 0.25rem;
+        margin-bottom: 1rem;
+    }
+    
+    .editor-container {
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        background: white;
+    }
+    
+    .document-info {
+        background-color: #e9ecef;
+        padding: 1rem;
+        border-radius: 0.25rem;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h3><i class="bi bi-file-earmark-text me-2"></i>Edit Word Document</h3>
+                    <div>
+                        <a href="{% url 'documents:document_detail' object.pk %}" class="btn btn-sm btn-light me-2">
+                            <i class="bi bi-eye"></i> View Document
+                        </a>
+                        <a href="{{ object.file.url }}" class="btn btn-sm btn-success" download>
+                            <i class="bi bi-download"></i> Download Original
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    {% if extraction_error %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Warning:</strong> There was an issue extracting the document content: {{ extraction_error }}
+                        <br>You can still edit using the basic text content.
+                    </div>
+                    {% endif %}
+                    
+                    <div class="document-info">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6><i class="bi bi-info-circle"></i> Document Information</h6>
+                                <p><strong>Title:</strong> {{ object.title }}</p>
+                                <p><strong>Type:</strong> {{ object.get_document_type_display }}</p>
+                                <p><strong>Uploaded:</strong> {{ object.uploaded_at|date:"DATETIME_FORMAT" }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="bi bi-clock-history"></i> Version History</h6>
+                                <p><strong>Versions:</strong> {{ object.versions.count }}</p>
+                                <p><strong>Last Modified:</strong> {{ object.modified_at|date:"DATETIME_FORMAT" }}</p>
+                                {% if object.reviewed_by %}
+                                <p><strong>Reviewed By:</strong> {{ object.reviewed_by.get_full_name }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form method="post" id="document-edit-form">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.title.id_for_label }}" class="form-label">
+                                        <strong>Document Title</strong>
+                                    </label>
+                                    {{ form.title }}
+                                    {% if form.title.errors %}
+                                    <div class="text-danger small">{{ form.title.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.description.id_for_label }}" class="form-label">
+                                        <strong>Description</strong>
+                                    </label>
+                                    {{ form.description }}
+                                    {% if form.description.errors %}
+                                    <div class="text-danger small">{{ form.description.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="editor-toolbar">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-pencil-square"></i> Document Content Editor
+                                </h5>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('bold')">
+                                        <i class="bi bi-type-bold"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('italic')">
+                                        <i class="bi bi-type-italic"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('underline')">
+                                        <i class="bi bi-type-underline"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="editor-container mb-4">
+                            <div class="mb-3">
+                                <label for="{{ form.html_content.id_for_label }}" class="form-label visually-hidden">
+                                    Document Content
+                                </label>
+                                {{ form.html_content }}
+                                {% if form.html_content.errors %}
+                                <div class="text-danger small mt-2">{{ form.html_content.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="button" class="btn btn-outline-info me-md-2" onclick="previewDocument()">
+                                <i class="bi bi-eye"></i> Preview Changes
+                            </button>
+                            <button type="submit" class="btn btn-success me-md-2">
+                                <i class="bi bi-save"></i> Save Document
+                            </button>
+                            <a href="{% url 'documents:document_detail' object.pk %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="previewModalLabel">
+                    <i class="bi bi-eye"></i> Document Preview
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="preview-content" class="p-3" style="border: 1px solid #dee2e6; border-radius: 0.25rem; background: white; min-height: 400px;">
+                    <!-- Preview content will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="applyPreview()">Apply Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Initialize CKEditor with enhanced configuration
+document.addEventListener('DOMContentLoaded', function() {
+    // Add custom styles to CKEditor
+    if (typeof CKEDITOR !== 'undefined') {
+        CKEDITOR.on('instanceReady', function(evt) {
+            var editor = evt.editor;
+            
+            // Add custom CSS to editor content
+            var cssContent = `
+                body { 
+                    font-family: 'Times New Roman', serif; 
+                    font-size: 12pt; 
+                    line-height: 1.6; 
+                    margin: 20px;
+                    background: white;
+                }
+                h1, h2, h3, h4, h5, h6 { 
+                    color: #2c3e50; 
+                    margin-top: 1em; 
+                    margin-bottom: 0.5em; 
+                }
+                p { 
+                    margin-bottom: 1em; 
+                    text-align: justify; 
+                }
+                .legal-section {
+                    margin: 1.5em 0;
+                    padding: 1em;
+                    border-left: 3px solid #3498db;
+                    background-color: #f8f9fa;
+                }
+            `;
+            
+            editor.addContentsCss('data:text/css;charset=utf-8,' + encodeURIComponent(cssContent));
+        });
+    }
+});
+
+function formatText(command) {
+    if (typeof CKEDITOR !== 'undefined') {
+        var editor = CKEDITOR.instances['id_html_content'];
+        if (editor) {
+            editor.execCommand(command);
+            editor.focus();
+        }
+    }
+}
+
+function previewDocument() {
+    var content = '';
+    
+    if (typeof CKEDITOR !== 'undefined') {
+        var editor = CKEDITOR.instances['id_html_content'];
+        if (editor) {
+            content = editor.getData();
+        }
+    }
+    
+    if (!content) {
+        content = document.getElementById('id_html_content').value;
+    }
+    
+    // Update preview content
+    document.getElementById('preview-content').innerHTML = content;
+    
+    // Show modal
+    var previewModal = new bootstrap.Modal(document.getElementById('previewModal'));
+    previewModal.show();
+}
+
+function applyPreview() {
+    // Close the preview modal
+    var previewModal = bootstrap.Modal.getInstance(document.getElementById('previewModal'));
+    previewModal.hide();
+    
+    // Focus back to editor
+    if (typeof CKEDITOR !== 'undefined') {
+        var editor = CKEDITOR.instances['id_html_content'];
+        if (editor) {
+            editor.focus();
+        }
+    }
+}
+
+// Auto-save functionality (optional)
+let autoSaveTimer;
+function startAutoSave() {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(function() {
+        // Implement auto-save logic here if needed
+        console.log('Auto-save triggered');
+    }, 30000); // Auto-save every 30 seconds
+}
+
+// Track changes for auto-save
+if (typeof CKEDITOR !== 'undefined') {
+    CKEDITOR.on('instanceReady', function(evt) {
+        evt.editor.on('change', startAutoSave);
+    });
+}
+
+// Form validation before submit
+document.getElementById('document-edit-form').addEventListener('submit', function(e) {
+    var content = '';
+    
+    if (typeof CKEDITOR !== 'undefined') {
+        var editor = CKEDITOR.instances['id_html_content'];
+        if (editor) {
+            content = editor.getData();
+        }
+    }
+    
+    if (!content || content.trim() === '') {
+        e.preventDefault();
+        alert('Please enter some content before saving the document.');
+        return false;
+    }
+    
+    // Show loading indicator
+    var submitBtn = document.querySelector('button[type="submit"]');
+    submitBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Saving...';
+    submitBtn.disabled = true;
+    
+    return true;
+});
+</script>
+{% endblock %}

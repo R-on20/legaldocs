@@ -1,0 +1,696 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+    <!-- Chart.js CDN - Latest stable version -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Date picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    
+    <style>
+        /* Modern flat design system for analytics */
+        :root {
+            --analytics-primary: #2c3e50;
+            --analytics-secondary: #34495e;
+            --analytics-accent: #3498db;
+            --analytics-success: #27ae60;
+            --analytics-warning: #f39c12;
+            --analytics-danger: #e74c3c;
+            --analytics-light: #ecf0f1;
+            --analytics-dark: #2c3e50;
+            --analytics-muted: #7f8c8d;
+            --analytics-card-bg: #ffffff;
+            --analytics-border: #dee2e6;
+            --analytics-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            --analytics-shadow-hover: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+
+        /* Modern Analytics Cards */
+        .analytics-card {
+            background: var(--analytics-card-bg);
+            border: 1px solid var(--analytics-border);
+            border-radius: 0.75rem;
+            box-shadow: var(--analytics-shadow);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .analytics-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--analytics-shadow-hover);
+            border-color: var(--analytics-accent);
+        }
+        
+        .analytics-card .card-body {
+            position: relative;
+            padding: 1.5rem;
+        }
+        
+        /* Card variants for different metrics */
+        .analytics-card.primary {
+            border-left: 4px solid var(--analytics-primary);
+        }
+        
+        .analytics-card.success {
+            border-left: 4px solid var(--analytics-success);
+        }
+        
+        .analytics-card.warning {
+            border-left: 4px solid var(--analytics-warning);
+        }
+        
+        .analytics-card.danger {
+            border-left: 4px solid var(--analytics-danger);
+        }
+        
+        .analytics-card.accent {
+            border-left: 4px solid var(--analytics-accent);
+        }
+        
+        /* Modern Analytics Header */
+        .analytics-header {
+            background: var(--analytics-primary);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            border-radius: 0 0 0.75rem 0.75rem;
+        }
+        
+        .analytics-header h1 {
+            font-size: clamp(1.75rem, 5vw, 2.5rem);
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .analytics-header p {
+            margin: 0.5rem 0 0 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        /* Metric styling */
+        .metric-value {
+            font-size: clamp(1.75rem, 4vw, 2.25rem);
+            font-weight: 700;
+            color: var(--analytics-primary);
+            margin: 0;
+            line-height: 1.1;
+        }
+        
+        .metric-label {
+            font-size: clamp(0.8rem, 2vw, 0.9rem);
+            color: var(--analytics-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            margin: 0.5rem 0 0 0;
+        }
+        
+        .metric-trend {
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-top: 0.5rem;
+        }
+        
+        .metric-trend.positive {
+            color: var(--analytics-success);
+        }
+        
+        .metric-trend.negative {
+            color: var(--analytics-danger);
+        }
+        
+        .metric-trend.neutral {
+            color: var(--analytics-muted);
+        }
+
+        /* Modern navigation styling */
+        .analytics-nav {
+            background: var(--analytics-card-bg);
+            border: 1px solid var(--analytics-border);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--analytics-shadow);
+        }
+        
+        .analytics-nav .nav-link {
+            color: var(--analytics-dark);
+            border: none;
+            border-radius: 0.5rem;
+            margin: 0.25rem;
+            padding: 0.75rem 1rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .analytics-nav .nav-link:hover,
+        .analytics-nav .nav-link.active {
+            color: white;
+            background: var(--analytics-primary);
+        }
+        
+        /* Modern button styling */
+        .btn-analytics {
+            background: var(--analytics-primary);
+            color: white;
+            border: 2px solid var(--analytics-primary);
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-analytics:hover {
+            background: var(--analytics-secondary);
+            border-color: var(--analytics-secondary);
+            color: white;
+        }
+        
+        .btn-analytics:focus {
+            box-shadow: 0 0 0 0.2rem rgba(44, 62, 80, 0.25);
+            outline: none;
+        }
+        
+        .btn-analytics.btn-accent {
+            background: var(--analytics-accent);
+            border-color: var(--analytics-accent);
+        }
+        
+        .btn-analytics.btn-accent:hover {
+            background: #2980b9;
+            border-color: #2980b9;
+        }
+        
+        .btn-analytics.btn-success {
+            background: var(--analytics-success);
+            border-color: var(--analytics-success);
+        }
+        
+        .btn-analytics.btn-success:hover {
+            background: #229954;
+            border-color: #229954;
+        }
+        
+        /* Date range picker styling */
+        .date-range-picker {
+            background: var(--analytics-card-bg);
+            border: 1px solid var(--analytics-border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--analytics-shadow);
+        }
+        
+        .date-range-picker .form-control {
+            border: 2px solid var(--analytics-border);
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: var(--analytics-card-bg);
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            color: var(--analytics-dark);
+        }
+        
+        .date-range-picker .form-control:focus {
+            border-color: var(--analytics-accent);
+            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+            background: white;
+            outline: none;
+        }
+        
+        .date-range-picker .form-control:hover {
+            border-color: var(--analytics-accent);
+        }
+        
+        .date-range-picker .btn-primary {
+            background: var(--analytics-accent);
+            border: 2px solid var(--analytics-accent);
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            color: white;
+            transition: all 0.2s ease;
+        }
+        
+        .date-range-picker .btn-primary:hover {
+            background: #2980b9;
+            border-color: #2980b9;
+        }
+        
+        .date-range-picker .btn-primary:focus {
+            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+            outline: none;
+        }
+        
+        /* Chart container styling */
+        .chart-container {
+            background: var(--analytics-card-bg);
+            border: 1px solid var(--analytics-border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: var(--analytics-shadow);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        /* Date range mini selector */
+        .date-range-mini .form-select {
+            background: var(--analytics-card-bg);
+            border: 1px solid var(--analytics-border);
+            border-radius: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+            color: var(--analytics-dark);
+            min-width: 120px;
+        }
+        
+        .date-range-mini .form-select:focus {
+            border-color: var(--analytics-accent);
+            box-shadow: 0 0 0 0.1rem rgba(52, 152, 219, 0.25);
+            outline: none;
+        }
+        
+        .chart-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .chart-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .chart-content {
+            height: 400px;
+            margin-top: 1rem;
+        }
+        
+        .chart-container h5 {
+            color: var(--analytics-primary);
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        
+        .chart-container.small-chart .chart-content {
+            height: 300px;
+        }
+        
+        /* Export buttons styling */
+        .export-buttons {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+        
+        .export-buttons .btn {
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-size: 0.875rem;
+        }
+        
+        .export-buttons .btn-outline-primary {
+            border: 2px solid var(--analytics-accent);
+            color: var(--analytics-accent);
+            background: white;
+        }
+        
+        .export-buttons .btn-outline-primary:hover {
+            background: var(--analytics-accent);
+            color: white;
+        }
+        
+        .export-buttons .btn-outline-success {
+            border: 2px solid var(--analytics-success);
+            color: var(--analytics-success);
+            background: white;
+        }
+        
+        .export-buttons .btn-outline-success:hover {
+            background: var(--analytics-success);
+            color: white;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .analytics-header h1 {
+                font-size: clamp(1.5rem, 6vw, 2rem);
+            }
+            
+            .analytics-card h3 {
+                font-size: clamp(1.1rem, 4vw, 1.25rem);
+            }
+            
+            .metric-value {
+                font-size: clamp(1.5rem, 6vw, 2rem);
+            }
+            
+            .analytics-nav .nav-link {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.9rem;
+            }
+            
+            .date-range-picker {
+                padding: 1rem;
+            }
+            
+            .export-buttons {
+                gap: 0.5rem;
+            }
+            
+            .export-buttons .btn {
+                padding: 0.375rem 0.75rem;
+                font-size: 0.8rem;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .analytics-card {
+                margin-bottom: 1rem;
+            }
+            
+            .date-range-picker {
+                padding: 0.75rem;
+                margin-bottom: 1.5rem;
+            }
+            
+            .btn-analytics {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+            }
+            
+            .export-buttons {
+                flex-direction: column;
+            }
+            
+            .export-buttons .btn {
+                width: 100%;
+            }
+        }
+        
+        /* Table styling */
+        .table-analytics {
+            background: var(--analytics-card-bg);
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: var(--analytics-shadow);
+        }
+        
+        .table-analytics th {
+            background: var(--analytics-light);
+            color: var(--analytics-dark);
+            font-weight: 600;
+            border: none;
+            padding: 1rem;
+        }
+        
+        .table-analytics td {
+            border: none;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--analytics-border);
+        }
+        
+        .table-analytics tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .table-analytics tbody tr:hover {
+            background: rgba(52, 152, 219, 0.05);
+        }
+        
+        /* Analytics Widget Styling */
+        .analytics-widget {
+            background: var(--analytics-card-bg);
+            border: 1px solid var(--analytics-border);
+            border-radius: 0.75rem;
+            box-shadow: var(--analytics-shadow);
+            transition: all 0.3s ease;
+        }
+        
+        .analytics-widget:hover {
+            box-shadow: var(--analytics-shadow-hover);
+        }
+        
+        .widget-header {
+            padding: 1.25rem 1.5rem 0.75rem 1.5rem;
+            border-bottom: 1px solid var(--analytics-border);
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+        
+        .widget-title {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--analytics-dark);
+        }
+        
+        .widget-content {
+            padding: 1.5rem;
+        }
+        
+        /* Top Items List Styling */
+        .top-items-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .top-items-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(222, 226, 230, 0.5);
+        }
+        
+        .top-items-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .item-name {
+            font-weight: 500;
+            color: var(--analytics-dark);
+            flex: 1;
+        }
+        
+        .item-count {
+            font-weight: 600;
+            color: var(--analytics-accent);
+            background: rgba(52, 152, 219, 0.1);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+        }
+        
+        /* Stat Icons */
+        .stat-icon {
+            font-size: 2rem;
+            color: var(--analytics-accent);
+            margin-bottom: 1rem;
+            display: block;
+        }
+        
+        .analytics-card.primary .stat-icon {
+            color: var(--analytics-primary);
+        }
+        
+        .analytics-card.success .stat-icon {
+            color: var(--analytics-success);
+        }
+        
+        .analytics-card.warning .stat-icon {
+            color: var(--analytics-warning);
+        }
+        
+        .analytics-card.danger .stat-icon {
+            color: var(--analytics-danger);
+        }
+        
+        .analytics-card.accent .stat-icon {
+            color: var(--analytics-accent);
+        }
+        
+        /* No Data Message */
+        .no-data {
+            text-align: center;
+            padding: 2rem;
+            color: var(--analytics-muted);
+        }
+        
+        .no-data i {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+        
+        /* Chart Actions */
+        .chart-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .chart-content {
+            position: relative;
+            height: 400px;
+        }
+        
+        .chart-container.small-chart .chart-content {
+            height: 300px;
+        }
+        
+        /* Badge Styling */
+        .badge {
+            font-size: 0.75rem;
+            padding: 0.375rem 0.5rem;
+            border-radius: 0.375rem;
+        }
+        
+        .badge.bg-primary {
+            background-color: var(--analytics-primary) !important;
+        }
+        
+        .badge.bg-success {
+            background-color: var(--analytics-success) !important;
+        }
+        
+        .badge.bg-warning {
+            background-color: var(--analytics-warning) !important;
+        }
+        
+        .badge.bg-danger {
+            background-color: var(--analytics-danger) !important;
+        }
+        
+        .badge.bg-light {
+            background-color: var(--analytics-light) !important;
+            color: var(--analytics-dark) !important;
+        }
+        
+        /* Text utilities */
+        .text-muted {
+            color: var(--analytics-muted) !important;
+        }
+        
+        /* Status indicators */
+        .status-indicator {
+            display: inline-block;
+            width: 0.75rem;
+            height: 0.75rem;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        
+        .status-indicator.active {
+            background: var(--analytics-success);
+        }
+        
+        .status-indicator.inactive {
+            background: var(--analytics-muted);
+        }
+        
+        .status-indicator.warning {
+            background: var(--analytics-warning);
+        }
+        
+        .status-indicator.danger {
+            background: var(--analytics-danger);
+        }
+        
+        /* Loading states */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+        }
+        
+        /* Error states */
+        .error-message {
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid var(--analytics-danger);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            color: var(--analytics-danger);
+            margin-bottom: 1rem;
+        }
+        
+        /* Success states */
+        .success-message {
+            background: rgba(39, 174, 96, 0.1);
+            border: 1px solid var(--analytics-success);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            color: var(--analytics-success);
+            margin-bottom: 1rem;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="analytics-header">
+        <div class="container">
+            {% block analytics_header %}
+                <h1>Analytics Dashboard</h1>
+                <p>Comprehensive insights and reports for your legal document management system</p>
+            {% endblock %}
+        </div>
+    </div>
+
+    <div class="container">
+        {% block analytics_nav %}
+            <div class="analytics-nav">
+                <ul class="nav nav-pills">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'analytics:dashboard' %}">
+                            <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'search_analytics' %}active{% endif %}" href="{% url 'analytics:search_analytics' %}">
+                            <i class="bi bi-search me-2"></i>Search Analytics
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'user_analytics' %}active{% endif %}" href="{% url 'analytics:user_analytics' %}">
+                            <i class="bi bi-people me-2"></i>User Analytics
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        {% endblock %}
+
+        {% block analytics_content %}
+        {% endblock %}
+    </div>
+
+    <!-- Include necessary JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        // Initialize date pickers
+        document.addEventListener('DOMContentLoaded', function() {
+            flatpickr('.date-picker', {
+                dateFormat: 'Y-m-d',
+                allowInput: true
+            });
+        });
+        
+        // Export data function
+        function exportData(dataType, format) {
+            const url = `{% url 'analytics:export_data' %}?type=${dataType}&format=${format}`;
+            window.open(url, '_blank');
+        }
+    </script>
+    
+    {% block analytics_js %}
+    {% endblock %}
+{% endblock %}

@@ -1,0 +1,736 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
+<!-- Mark.js for text highlighting -->
+<script src="https://cdn.jsdelivr.net/npm/mark.js@8.11.1/dist/mark.min.js"></script>
+<!-- Smart Search JavaScript -->
+<script src="{% static 'js/smart_search.js' %}"></script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .audio-player-container, .video-player-container {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    audio, video {
+        border-radius: 0.25rem;
+        background: #000;
+    }
+
+    audio {
+        height: 50px;
+    }
+
+    video {
+        max-height: 400px;
+    }
+
+    .transcript-container {
+        background-color: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .transcript-content {
+        white-space: pre-wrap;
+        line-height: 1.6;
+        font-size: 0.95rem;
+    }
+
+    .document-viewer {
+        height: 90vh;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        margin-top: 1rem;
+        overflow: auto;
+    }
+    
+    .word-document-content {
+        font-family: 'Times New Roman', serif;
+        font-size: 12pt;
+        line-height: 1.6;
+    }
+    
+    .word-document-content h1,
+    .word-document-content h2,
+    .word-document-content h3,
+    .word-document-content h4,
+    .word-document-content h5,
+    .word-document-content h6 {
+        color: #2c3e50;
+        margin-top: 1.5em;
+        margin-bottom: 0.5em;
+        font-weight: bold;
+    }
+    
+    .word-document-content p {
+        margin-bottom: 0.8em;
+        text-align: justify;
+    }
+    
+    .word-document-content p:empty {
+        margin-bottom: 0.4em; /* Reduce spacing for empty paragraphs */
+        min-height: 0.4em;
+    }
+    
+    .word-document-content ul,
+    .word-document-content ol {
+        margin: 1em 0;
+        padding-left: 2em;
+    }
+    
+    .word-document-content li {
+        margin-bottom: 0.5em;
+    }
+    
+    .word-document-content table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 1.2em 0; /* Slightly more margin for better separation */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .word-document-content td,
+    .word-document-content th {
+        border: 1px solid #ddd;
+        padding: 8px 12px;
+        text-align: left;
+        vertical-align: top;
+    }
+    
+    .word-document-content th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+        color: #495057;
+    }
+    
+    .word-document-content table tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    
+    .word-document-content table tr:hover {
+        background-color: #f5f5f5;
+    }
+    
+    /* Better spacing between different elements */
+    .word-document-content > *:first-child {
+        margin-top: 0;
+    }
+    
+    .word-document-content > *:last-child {
+        margin-bottom: 0;
+    }
+    
+    /* Reduce excessive spacing between paragraphs and tables */
+    .word-document-content p + table,
+    .word-document-content table + p {
+        margin-top: 0.8em;
+    }
+
+    /* Search highlighting styles */
+    .search-highlight {
+        background-color: #fff3cd !important;
+        border: 1px solid #ffeaa7;
+        border-radius: 3px;
+        padding: 2px 4px;
+        font-weight: 500;
+        color: #856404 !important;
+        box-shadow: 0 1px 3px rgba(255, 193, 7, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .search-highlight.current {
+        background-color: #ff6b6b !important;
+        color: white !important;
+        border-color: #e74c3c;
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    .search-navigation {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        background: white;
+        padding: 10px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border: 1px solid #dee2e6;
+    }
+
+    .search-navigation .btn {
+        margin: 0 2px;
+    }
+
+    .search-info {
+        background-color: #e3f2fd;
+        border: 1px solid #90caf9;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+        color: #1565c0;
+    }
+
+    .search-info .badge {
+        background-color: #1976d2;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h3>{{ document.title }}</h3>
+            <div>                        {% if user_can_edit_documents %}
+                        <a href="{% url 'documents:document_update' document.pk %}" class="btn btn-sm btn-light me-2">
+                            <i class="bi bi-pencil"></i> Edit
+                        </a>
+                        {% endif %}
+                        {% if is_word_document and user_can_edit_documents %}
+                        <a href="{% url 'documents:document_word_edit' document.pk %}" class="btn btn-sm btn-warning me-2">
+                            <i class="bi bi-pencil-square"></i> Edit Content
+                        </a>
+                        {% endif %}
+                <a href="{% url 'documents:document_download' document.pk %}" class="btn btn-sm btn-success" download>
+                    <i class="bi bi-download"></i> Download Original
+                </a>
+                
+                <!-- PDF Related Actions -->
+                {% if has_pdf_version %}
+                <a href="{% url 'documents:document_pdf_download' document.pk %}" class="btn btn-sm btn-danger ms-1" download>
+                    <i class="bi bi-file-pdf"></i> Download PDF
+                </a>
+                {% endif %}
+                
+                {% if can_convert_to_pdf %}
+                    {% if not has_pdf_version %}
+                    <form method="post" action="{% url 'documents:document_convert_to_pdf' document.pk %}" style="display: inline;" class="ms-1">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                onclick="return confirm('Convert this Word document to PDF? This may take a few moments.')"
+                                title="Convert to PDF">
+                            <i class="bi bi-file-pdf"></i> Convert to PDF
+                        </button>
+                    </form>
+                    {% else %}
+                    <form method="post" action="{% url 'documents:document_convert_to_pdf' document.pk %}" style="display: inline;" class="ms-1">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-secondary" 
+                                onclick="return confirm('Regenerate PDF version? This will replace the existing PDF.')"
+                                title="Regenerate PDF">
+                            <i class="bi bi-arrow-clockwise"></i> Regenerate PDF
+                        </button>
+                    </form>
+                    {% endif %}
+                {% endif %}
+                
+                {% if document.file.name|lower|slice:'-4:' == '.pdf' or has_pdf_version %}
+                <button onclick="openPDFInNewWindow('{{ document.file.url }}')" class="btn btn-sm btn-primary ms-2">
+                    <i class="bi bi-eye"></i> View Fullscreen
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card-body">
+            {% if search_query %}
+            <!-- Search Information Banner -->
+            <div class="search-info">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="bi bi-search"></i>
+                        <strong>Search Results for:</strong> "{{ search_query }}"
+                        <span class="badge ms-2" id="search-counter">0 matches found</span>
+                    </div>
+                    <div class="search-navigation">
+                        <button class="btn btn-sm btn-outline-primary" id="prev-match" title="Previous match">
+                            <i class="bi bi-chevron-up"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" id="next-match" title="Next match">
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="clearSearch()" title="Clear search">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <h5>Document Details</h5>
+                    <table class="table table-sm table-borderless">
+                        <tr><th width="30%">Type:</th><td>{{ document.get_document_type_display }}</td></tr>
+                        <tr>
+                            <th>Status:</th>
+                            <td>
+                                <span class="badge bg-{% if document.status == 'APPROVED' %}success{% elif document.status == 'REVIEW' %}warning{% else %}secondary{% endif %}">
+                                    {{ document.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr><th>Uploaded By:</th><td>{{ document.uploaded_by.get_full_name }} on {{ document.uploaded_at|date:"DATETIME_FORMAT" }}</td></tr>
+                        {% if document.reviewed_by %}
+                        <tr><th>Reviewed By:</th><td>{{ document.reviewed_by.get_full_name }}</td></tr>
+                        {% endif %}
+                        {% if document.confidential %}
+                        <tr><th>Confidential:</th><td><span class="badge bg-danger">Yes</span></td></tr>
+                        {% endif %}
+                    </table>
+
+                    {% if document.description %}
+                    <h5 class="mt-4">Description</h5>
+                    <p>{{ document.description }}</p>
+                    {% endif %}
+
+                    {% if document.tags.all %}
+                    <h5>Tags</h5>
+                    {% for tag in document.tags.all %}
+                    <span class="badge bg-info me-1">{{ tag.name }}</span>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-light"><h5 class="mb-0">File Information</h5></div>
+                        <div class="card-body">
+                            <p><strong>File Name:</strong> {{ document.file.name|slice:"20:" }}</p>
+                            <p><strong>File Size:</strong> {{ document.file.size|filesizeformat }}</p>
+                            <p><strong>Last Modified:</strong> {{ document.modified_at|date:"DATETIME_FORMAT" }}</p>
+                            <div class="d-grid gap-2 mt-3">
+                                <a href="{% url 'documents:version_create' document.pk %}" class="btn btn-outline-primary">
+                                    <i class="bi bi-plus-circle"></i> New Version
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if is_media_file %}
+            <div class="card shadow mt-4">
+                <div class="card-header bg-light">
+                    <h5><i class="bi bi-{% if media_type == 'audio' %}music-note-beamed{% else %}film{% endif %}"></i> {{ media_type|title }} Player</h5>
+                </div>
+                <div class="card-body">
+                    {% if media_type == 'audio' %}
+                    <div class="audio-player-container">
+                        <audio controls class="w-100">
+                            <source src="{{ document.file.url }}" type="audio/{{ document.file.name|lower|slice:'-3:' }}">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </div>
+                    {% else %}
+                    <div class="video-player-container">
+                        <video controls class="w-100">
+                            <source src="{{ document.file.url }}" type="video/{{ document.file.name|lower|slice:'-3:' }}">
+                            Your browser does not support the video element.
+                        </video>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card shadow mt-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        {% if is_media_file %}
+                        <i class="bi bi-text-paragraph"></i> Transcript
+                        {% else %}
+                        <i class="bi bi-file-text"></i> Document Content
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if is_media_file %}
+                    <div class="transcript-container">
+                        {% if display_content %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> Automatically generated transcript
+                        </div>
+                        <div class="transcript-content">{{ display_content|linebreaks }}</div>
+                        {% else %}
+                        <div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> No transcript available.</div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                        {% if document.file.name|lower|slice:'-4:' == '.pdf' %}
+                        <div id="pdf-preview-container" class="p-3">
+                            <!-- PDF Navigation Controls -->
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-outline-primary" id="pdf-prev-page" disabled>
+                                        <i class="bi bi-chevron-left"></i> Previous
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary" id="pdf-next-page" disabled>
+                                        Next <i class="bi bi-chevron-right"></i>
+                                    </button>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <span class="me-2">Page:</span>
+                                    <input type="number" id="pdf-page-input" class="form-control" style="width: 70px;" min="1" value="1">
+                                    <span class="ms-2">of <span id="pdf-total-pages">-</span></span>
+                                </div>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-outline-secondary" id="pdf-zoom-out">
+                                        <i class="bi bi-zoom-out"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="pdf-zoom-in">
+                                        <i class="bi bi-zoom-in"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="pdf-fit-width">
+                                        <i class="bi bi-arrows-angle-expand"></i> Fit Width
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- PDF Viewer Container -->
+                            <div id="pdf-viewer" class="document-viewer w-100 text-center" style="border: 1px solid #dee2e6; border-radius: 0.25rem; overflow-y: auto; max-height: 600px;">
+                                <div class="d-flex justify-content-center align-items-center h-100">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading PDF...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% elif is_word_document %}
+                            {% if content_type == 'html' %}
+                            <div class="word-document-content p-4" style="background: white; border: 1px solid #dee2e6; border-radius: 0.25rem; font-family: 'Times New Roman', serif; line-height: 1.6; min-height: 400px;">
+                                {{ display_content|safe }}
+                            </div>
+                            {% else %}
+                            <div class="p-3 document-content">{{ display_content|linebreaks }}</div>
+                            {% endif %}
+                            {% if extraction_error %}
+                            <div class="alert alert-warning mt-3">
+                                <i class="bi bi-exclamation-triangle"></i> 
+                                <strong>Note:</strong> {{ extraction_error }}
+                            </div>
+                            {% endif %}
+                        {% elif document.file.name|lower|slice:'-5:' == '.docx' or document.file.name|lower|slice:'-4:' == '.doc' %}
+                            {% include 'documents/docx_viewer.html' %}
+                        {% elif display_content %}
+                        <div class="p-3 document-content">{{ display_content|linebreaks }}</div>
+                        {% else %}
+                        <div class="alert alert-warning m-3">No content extracted from this document.</div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if document.editable and not is_word_document %}
+            <div class="card shadow mt-4">
+                <div class="card-header bg-primary text-white">
+                    <h5><i class="bi bi-pencil"></i> Edit Content</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'documents:document_update_content' document.pk %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <textarea class="form-control" name="content" rows="10">{{ document.content }}</textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Save Changes
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% elif document.editable and is_word_document %}
+            <div class="card shadow mt-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5><i class="bi bi-pencil-square"></i> Word Document Editing</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 
+                        For Word documents, use the <strong>"Edit Content"</strong> button above to edit in a rich text editor that preserves formatting.
+                    </div>
+                    {% if content_type == 'html' and display_content %}
+                    <div class="mt-3">
+                        <h6>Current Content Preview:</h6>
+                        <div class="border p-3 bg-light" style="max-height: 300px; overflow-y: auto;">
+                            {{ display_content|safe }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="mt-3">
+                        <a href="{% url 'documents:document_word_edit' document.pk %}" class="btn btn-warning">
+                            <i class="bi bi-pencil-square"></i> Edit Content
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="mt-5">
+                <h5>Document Versions</h5>
+                {% if document.versions.all %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Version</th>
+                                <th>Changes</th>
+                                <th>Created By</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for version in document.versions.all %}
+                            <tr>
+                                <td>v{{ version.version_number }}</td>
+                                <td>{{ version.changes|truncatechars:50 }}</td>
+                                <td>{{ version.created_by.get_full_name }}</td>
+                                <td>{{ version.created_at|date:"SHORT_DATE_FORMAT" }}</td>
+                                <td>
+                                    {% if version.approved %}
+                                    <span class="badge bg-success">Approved</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ version.file.url }}" class="btn btn-sm btn-outline-primary" download>
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">No versions available</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let pdfDoc = null;
+let currentPage = 1;
+let totalPages = 0;
+let currentScale = 1.0;
+
+function initPDFViewer(url) {
+    const container = document.getElementById("pdf-viewer");
+    const prevBtn = document.getElementById("pdf-prev-page");
+    const nextBtn = document.getElementById("pdf-next-page");
+    const pageInput = document.getElementById("pdf-page-input");
+    const totalPagesSpan = document.getElementById("pdf-total-pages");
+    const zoomInBtn = document.getElementById("pdf-zoom-in");
+    const zoomOutBtn = document.getElementById("pdf-zoom-out");
+    const fitWidthBtn = document.getElementById("pdf-fit-width");
+
+    pdfjsLib.getDocument(url).promise.then(function (pdf) {
+        pdfDoc = pdf;
+        totalPages = pdf.numPages;
+        totalPagesSpan.textContent = totalPages;
+        
+        // Enable navigation buttons
+        updateNavigationButtons();
+        
+        // Render first page
+        renderPage(1);
+        
+        // Event listeners for navigation
+        prevBtn.addEventListener('click', function() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderPage(currentPage);
+                updateNavigationButtons();
+            }
+        });
+        
+        nextBtn.addEventListener('click', function() {
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderPage(currentPage);
+                updateNavigationButtons();
+            }
+        });
+        
+        // Page input handler
+        pageInput.addEventListener('change', function() {
+            const pageNum = parseInt(this.value);
+            if (pageNum >= 1 && pageNum <= totalPages) {
+                currentPage = pageNum;
+                renderPage(currentPage);
+                updateNavigationButtons();
+            } else {
+                this.value = currentPage;
+            }
+        });
+        
+        // Zoom controls
+        zoomInBtn.addEventListener('click', function() {
+            currentScale *= 1.2;
+            renderPage(currentPage);
+        });
+        
+        zoomOutBtn.addEventListener('click', function() {
+            currentScale /= 1.2;
+            renderPage(currentPage);
+        });
+        
+        fitWidthBtn.addEventListener('click', function() {
+            const containerWidth = container.clientWidth - 20; // Account for padding
+            pdfDoc.getPage(currentPage).then(function(page) {
+                const viewport = page.getViewport({ scale: 1 });
+                currentScale = containerWidth / viewport.width;
+                renderPage(currentPage);
+            });
+        });
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.target.type !== 'number') { // Don't interfere with page input
+                if (e.key === 'ArrowLeft' && currentPage > 1) {
+                    currentPage--;
+                    renderPage(currentPage);
+                    updateNavigationButtons();
+                } else if (e.key === 'ArrowRight' && currentPage < totalPages) {
+                    currentPage++;
+                    renderPage(currentPage);
+                    updateNavigationButtons();
+                }
+            }
+        });
+        
+    }).catch(function (error) {
+        console.error("PDF.js error:", error);
+        document.getElementById("pdf-preview-container").innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i>
+                <strong>Failed to load PDF preview.</strong>
+                <br>
+                <a href="#" onclick="openPDFInNewWindow('${url}')" class="btn btn-outline-primary mt-2">
+                    <i class="bi bi-box-arrow-up-right"></i> Open in new window
+                </a>
+            </div>
+        `;
+    });
+}
+
+function renderPage(pageNum) {
+    const container = document.getElementById("pdf-viewer");
+    const pageInput = document.getElementById("pdf-page-input");
+    
+    // Show loading
+    container.innerHTML = `
+        <div class="d-flex justify-content-center align-items-center" style="height: 400px;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading page ${pageNum}...</span>
+            </div>
+        </div>
+    `;
+    
+    pdfDoc.getPage(pageNum).then(function (page) {
+        const viewport = page.getViewport({ scale: currentScale });
+        
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        canvas.style.maxWidth = "100%";
+        canvas.style.height = "auto";
+        
+        container.innerHTML = "";
+        container.appendChild(canvas);
+        
+        // Update page input
+        pageInput.value = pageNum;
+        
+        const renderContext = {
+            canvasContext: context,
+            viewport: viewport
+        };
+        
+        page.render(renderContext).promise.then(function() {
+            // Page rendered successfully
+            console.log(`Page ${pageNum} rendered successfully`);
+        });
+    });
+}
+
+function updateNavigationButtons() {
+    const prevBtn = document.getElementById("pdf-prev-page");
+    const nextBtn = document.getElementById("pdf-next-page");
+    
+    prevBtn.disabled = currentPage <= 1;
+    nextBtn.disabled = currentPage >= totalPages;
+    
+    // Update button text with page info
+    prevBtn.innerHTML = `<i class="bi bi-chevron-left"></i> Previous ${currentPage > 1 ? '(' + (currentPage - 1) + ')' : ''}`;
+    nextBtn.innerHTML = `Next ${currentPage < totalPages ? '(' + (currentPage + 1) + ')' : ''} <i class="bi bi-chevron-right"></i>`;
+}
+
+function openPDFInNewWindow(url) {
+    window.open(url, '_blank');
+    return false;
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    {% if document.file.name|lower|slice:'-4:' == '.pdf' %}
+    initPDFViewer('{{ document.file.url }}');
+    {% endif %}
+});
+
+// In your extra_js block
+function adjustViewerHeight() {
+    const viewer = document.querySelector('.document-viewer');
+    if (viewer) {
+        viewer.style.height = window.innerHeight * 0.7 + 'px';
+    }
+}
+
+window.addEventListener('resize', adjustViewerHeight);
+document.addEventListener('DOMContentLoaded', adjustViewerHeight);
+
+// Initialize Smart Search
+document.addEventListener('DOMContentLoaded', function() {
+    {% if search_query %}
+    // Initialize smart search with data from Django
+    const searchQuery = '{{ search_query|escapejs }}';
+    const searchTerms = [
+        {% for term in search_terms %}'{{ term|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}
+    ];
+    
+    // Initialize search functionality
+    window.smartSearch = initSmartSearch(searchQuery, searchTerms);
+    
+    // Show keyboard shortcuts info
+    const searchInfo = document.querySelector('.search-info');
+    if (searchInfo) {
+        const keyboardInfo = document.createElement('small');
+        keyboardInfo.className = 'text-muted d-block mt-2';
+        keyboardInfo.innerHTML = '<i class="bi bi-keyboard"></i> Shortcuts: F3/Shift+F3 or Ctrl+↓/↑ to navigate matches, ←/→ for PDF pages';
+        searchInfo.appendChild(keyboardInfo);
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}

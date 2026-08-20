@@ -1,0 +1,158 @@
+@startuml ILDMS_Entity_Relationship_Diagram
+
+!define ENTITY_BG #E6F3FF
+!define PRIMARY_KEY #FFE6E6
+!define FOREIGN_KEY #E6FFE6
+
+skinparam backgroundColor white
+skinparam defaultFontSize 10
+skinparam classAttributeFontSize 9
+skinparam classFontStyle bold
+
+title ILDMS (Integrated Legal Document Management System) - Entity Relationship Diagram
+
+' Core User Management
+entity "User" as user {
+  + id : Integer <<PK>>
+  --
+  username : String
+  email : String
+  first_name : String
+  last_name : String
+  role : Enum(LAWYER, SENIOR_PARALEGAL, PARALEGAL, CLIENT, ADMIN)
+  phone : String
+  is_verified : Boolean
+  bar_number : String
+  specialization : String
+  last_login_ip : IPAddress
+  date_joined : DateTime
+  last_updated : DateTime
+}
+
+' Document Management
+entity "Document" as document {
+  + id : Integer <<PK>>
+  --
+  title : String
+  document_type : Enum(CONSTITUTION, BILL, ACT, LEGAL_NOTICE, etc.)
+  file : FileField
+  pdf_file : FileField
+  content : Text
+  html_content : Text
+  audio_transcript : Text
+  description : Text
+  confidential : Boolean
+  status : Enum(DRAFT, REVIEW, APPROVED, ARCHIVED)
+  editable : Boolean
+  is_archived : Boolean
+  archived_at : DateTime
+  uploaded_at : DateTime
+  modified_at : DateTime
+  search_vector : SearchVector
+  --
+  # uploaded_by : Integer <<FK>>
+  # reviewed_by : Integer <<FK>>
+  # archived_by : Integer <<FK>>
+}
+
+' Document Versioning
+entity "DocumentVersion" as version {
+  + id : Integer <<PK>>
+  --
+  version_number : Integer
+  file : FileField
+  changes : Text
+  approved : Boolean
+  created_at : DateTime
+  --
+  # document_id : Integer <<FK>>
+  # created_by : Integer <<FK>>
+}
+
+' Tagging System
+entity "Tag" as tag {
+  + id : Integer <<PK>>
+  --
+  name : String
+  is_system : Boolean
+  created_at : DateTime
+  --
+  # created_by : Integer <<FK>>
+}
+
+' Document-Tag Association (Many-to-Many)
+entity "DocumentTag" as doc_tag {
+  + document_id : Integer <<FK>>
+  + tag_id : Integer <<FK>>
+}
+
+' Audit Logging
+entity "AuditLog" as audit {
+  + id : Integer <<PK>>
+  --
+  document_id : Integer
+  document_title : String
+  document_type : String
+  action : Enum(CREATE, UPDATE, VIEW, DOWNLOAD, etc.)
+  timestamp : DateTime
+  additional_info : JSON
+  ip_address : IPAddress
+  user_agent : Text
+  session_key : String
+  --
+  # user_id : Integer <<FK>>
+}
+
+' Email Verification
+entity "EmailVerificationToken" as email_token {
+  + id : Integer <<PK>>
+  --
+  token : String
+  created_at : DateTime
+  expires_at : DateTime
+  --
+  # user_id : Integer <<FK>>
+}
+
+' Document Templates
+entity "DocumentTemplate" as template {
+  + id : Integer <<PK>>
+  --
+  name : String
+  content : RichText
+  created_at : DateTime
+  updated_at : DateTime
+}
+
+' Define relationships with cardinalities
+user ||--o{ document : "uploads"
+user ||--o{ document : "reviews"
+user ||--o{ document : "archives"
+user ||--o{ version : "creates"
+user ||--o{ tag : "creates"
+user ||--o{ audit : "performs"
+user ||--o{ email_token : "has"
+
+document ||--o{ version : "has versions"
+document }o--o{ tag : "tagged with"
+document ||--o{ audit : "tracked in"
+
+doc_tag }o--|| document
+doc_tag }o--|| tag
+
+' Add notes for key business rules
+note right of document : "Confidential documents require\nspecial permissions to view"
+note left of version : "Each document can have\nmultiple versions with\napproval workflow"
+note bottom of audit : "All document actions\nare logged for compliance"
+
+' Color coding
+user #ENTITY_BG
+document #ENTITY_BG
+version #ENTITY_BG
+tag #ENTITY_BG
+doc_tag #ENTITY_BG
+audit #ENTITY_BG
+email_token #ENTITY_BG
+template #ENTITY_BG
+
+@enduml

@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h3><i class="bi bi-upload me-2"></i>Upload Document</h3>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate id="uploadForm">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for error in form.non_field_errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.title.id_for_label }}" class="form-label">Title*</label>
+                        {{ form.title }}
+                        <div class="invalid-feedback">
+                            Please provide a document title.
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="{{ form.document_type.id_for_label }}" class="form-label">Document Type*</label>
+                        {{ form.document_type }}
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.file.id_for_label }}" class="form-label">File*</label>
+                    {{ form.file }}
+                    <div class="form-text">Allowed formats: PDF, DOCX, DOC, PPT, XLS, MP3, WAV, MP4 (Max 50MB)</div>
+                    <div class="invalid-feedback">
+                        Please upload a valid document file.
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                    {{ form.description }}
+                </div>
+
+                {% if 'confidential' in form.fields %}
+                <div class="mb-3 form-check form-switch">
+                    {{ form.confidential }}
+                    <label class="form-check-label" for="{{ form.confidential.id_for_label }}">Confidential Document</label>
+                </div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <label class="form-label">Tags</label>
+                    {{ form.tags }}
+                </div>
+
+                <!-- 🔄 Upload Progress -->
+                <div class="mb-3" id="progressContainer" style="display: none;">
+                    <div class="progress">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated"
+                             role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <small id="progressText" class="text-muted">0% uploaded</small>
+                </div>
+
+                <!-- Processing Status -->
+                <div class="mb-3" id="processingContainer" style="display: none;">
+                    <div class="alert alert-info">
+                        <div class="d-flex align-items-center">
+                            <div class="spinner-border spinner-border-sm me-2" role="status">
+                                <span class="visually-hidden">Processing...</span>
+                            </div>
+                            <div>
+                                <strong>Processing Document...</strong>
+                                <div id="processingStatus" class="small text-muted">
+                                    Extracting content and generating searchable text...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <button type="submit" class="btn btn-primary me-md-2" id="submitButton">
+                        <i class="bi bi-upload me-1"></i> Upload
+                    </button>
+                    <a href="{% url 'documents:document_list' %}" class="btn btn-outline-secondary">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 📜 Upload with Progress and Processing Status -->
+<script>
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    const form = e.target;
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const processingContainer = document.getElementById('processingContainer');
+    const processingStatus = document.getElementById('processingStatus');
+    const submitButton = document.getElementById('submitButton');
+
+    // Show progress UI
+    progressContainer.style.display = 'block';
+    submitButton.disabled = true;
+
+    // Prepare AJAX upload
+    const xhr = new XMLHttpRequest();
+    const formData = new FormData(form);
+
+    xhr.upload.addEventListener('progress', function(event) {
+        if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            progressBar.style.width = percent + '%';
+            progressText.textContent = percent + '% uploaded';
+            if (percent >= 100) {
+                progressText.textContent = 'Upload complete, processing...';
+            }
+        }
+    });
+
+    xhr.addEventListener('load', function() {
+        if (xhr.status === 200) {
+            try {
+                const response = JSON.parse(xhr.responseText);
+                if (response.success) {
+                    // Hide upload progress, show processing status
+                    progressContainer.style.display = 'none';
+                    
+                    if (response.processing_status === 'background') {
+                        // Show processing status for background processing
+                        processingContainer.style.display = 'block';
+                        processingStatus.textContent = 'Document uploaded successfully. Content extraction and transcription are being processed in the background.';
+                        
+                        // Check processing status periodically
+                        checkProcessingStatus(response.document_id);
+                    } else {
+                        // Processing complete immediately
+                        window.location.href = "{% url 'documents:document_list' %}";
+                    }
+                } else {
+                    handleUploadError(response.error || 'Upload failed');
+                }
+            } catch (e) {
+                // Fallback for non-JSON response (redirect)
+                window.location.href = "{% url 'documents:document_list' %}";
+            }
+        } else {
+            handleUploadError('Upload failed. Please try again.');
+        }
+    });
+
+    xhr.addEventListener('error', function() {
+        handleUploadError('Network error. Please check your connection and try again.');
+    });
+
+    function handleUploadError(message) {
+        alert(message);
+        submitButton.disabled = false;
+        progressContainer.style.display = 'none';
+        processingContainer.style.display = 'none';
+    }
+
+    function checkProcessingStatus(documentId) {
+        const processingStatusUrl = `{% url 'documents:document_processing_status' pk=0 %}`.replace('0', documentId);
+        const checkInterval = setInterval(() => {
+            fetch(processingStatusUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.processing_complete) {
+                        clearInterval(checkInterval);
+                        processingStatus.innerHTML = `
+                            <span class="text-success">
+                                <i class="bi bi-check-circle"></i> 
+                                Processing complete! Redirecting...
+                            </span>
+                        `;
+                        setTimeout(() => {
+                            window.location.href = "{% url 'documents:document_list' %}";
+                        }, 2000);
+                    } else {
+                        // Update status message based on what's been processed
+                        let statusMessage = 'Processing document...';
+                        if (data.has_content) statusMessage = 'Text extracted, continuing processing...';
+                        if (data.has_html_content) statusMessage = 'HTML content processed, continuing...';
+                        if (data.has_transcript) statusMessage = 'Transcription complete, finalizing...';
+                        
+                        processingStatus.textContent = statusMessage;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking processing status:', error);
+                    // Continue checking in case of temporary network issues
+                });
+        }, 3000); // Check every 3 seconds
+
+        // Timeout after 5 minutes
+        setTimeout(() => {
+            clearInterval(checkInterval);
+            processingStatus.innerHTML = `
+                <span class="text-warning">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    Processing is taking longer than expected. You can check the document status in your document list.
+                </span>
+            `;
+            setTimeout(() => {
+                window.location.href = "{% url 'documents:document_list' %}";
+            }, 3000);
+        }, 300000); // 5 minutes timeout
+    }
+
+    xhr.open('POST', form.action);
+    xhr.setRequestHeader('X-CSRFToken', '{{ csrf_token }}');
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    xhr.send(formData);
+    e.preventDefault(); // Stop default form submission
+});
+
+// Client-side Bootstrap validation
+(function () {
+    'use strict'
+    const forms = document.querySelectorAll('.needs-validation');
+    Array.from(forms).forEach(form => {
+        form.addEventListener('submit', event => {
+            if (!form.checkValidity()) {
+                event.preventDefault()
+                event.stopPropagation()
+            }
+            form.classList.add('was-validated')
+        }, false)
+    })
+})();
+</script>
+{% endblock %}

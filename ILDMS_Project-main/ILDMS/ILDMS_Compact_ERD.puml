@@ -1,0 +1,106 @@
+@startuml ILDMS_Compact_ERD
+
+!theme plain
+skinparam backgroundColor white
+skinparam defaultFontSize 9
+skinparam classAttributeFontSize 8
+skinparam linetype ortho
+skinparam nodesep 20
+skinparam ranksep 30
+
+title **ILDMS - Entity Relationship Diagram**
+
+' Define entities with key attributes only
+class User {
+  + id : PK
+  --
+  username : String
+  email : String
+  role : Enum
+  phone : String
+  bar_number : String
+  is_verified : Boolean
+}
+
+class Document {
+  + id : PK
+  --
+  title : String
+  document_type : Enum
+  file : FileField
+  content : Text
+  confidential : Boolean
+  status : Enum
+  is_archived : Boolean
+  uploaded_at : DateTime
+  --
+  uploaded_by_id : FK
+  reviewed_by_id : FK
+}
+
+class DocumentVersion {
+  + id : PK
+  --
+  version_number : Integer
+  file : FileField
+  changes : Text
+  approved : Boolean
+  --
+  document_id : FK
+  created_by_id : FK
+}
+
+class Tag {
+  + id : PK
+  --
+  name : String
+  is_system : Boolean
+  --
+  created_by_id : FK
+}
+
+class AuditLog {
+  + id : PK
+  --
+  document_id : Integer
+  action : Enum
+  timestamp : DateTime
+  ip_address : IP
+  --
+  user_id : FK
+}
+
+class DocumentTemplate {
+  + id : PK
+  --
+  name : String
+  content : RichText
+  created_at : DateTime
+}
+
+class EmailVerificationToken {
+  + id : PK
+  --
+  token : String
+  expires_at : DateTime
+  --
+  user_id : FK
+}
+
+' Relationships
+User ||--o{ Document : uploads
+User ||--o{ Document : reviews
+User ||--o{ DocumentVersion : creates
+User ||--o{ Tag : creates
+User ||--o{ AuditLog : logs
+User ||--o{ EmailVerificationToken : verifies
+
+Document ||--o{ DocumentVersion : versions
+Document }o--o{ Tag : tagged
+Document ||--o{ AuditLog : tracked
+
+' Layout hints
+User -[hidden]-> DocumentTemplate
+Tag -[hidden]-> EmailVerificationToken
+
+@enduml

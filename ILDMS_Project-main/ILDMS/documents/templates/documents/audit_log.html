@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    .audit-action-badge {
+        font-size: 0.8em;
+        padding: 0.5em 0.8em;
+    }
+    
+    .audit-details {
+        font-size: 0.9em;
+        max-width: 300px;
+    }
+    
+    .audit-details .detail-item {
+        margin-bottom: 0.3em;
+        padding: 0.2em 0.5em;
+        background-color: #f8f9fa;
+        border-radius: 0.25rem;
+        border-left: 3px solid #dee2e6;
+    }
+    
+    .audit-details .detail-label {
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .audit-details .detail-value {
+        color: #6c757d;
+    }
+    
+    .document-info {
+        max-width: 250px;
+    }
+    
+    .document-title {
+        font-weight: 600;
+        color: #212529;
+    }
+    
+    .document-type {
+        font-size: 0.8em;
+        color: #6c757d;
+    }
+    
+    .user-info {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .user-name {
+        font-weight: 600;
+    }
+    
+    .user-role {
+        font-size: 0.8em;
+        color: #6c757d;
+    }
+    
+    .ip-info {
+        font-size: 0.75em;
+        color: #adb5bd;
+    }
+    
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        
+        .card {
+            border: none !important;
+            box-shadow: none !important;
+        }
+        
+        .table {
+            font-size: 0.8em;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+        <h2><i class="bi bi-clipboard-data"></i> Audit Log</h2>
+        <div class="btn-group">
+            <!-- Export Options -->
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-download"></i> Export
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{% url 'documents:audit_log_export' %}?format=pdf" target="_blank">
+                        <i class="bi bi-file-earmark-pdf"></i> Export as PDF
+                    </a></li>
+                    <li><a class="dropdown-item" href="{% url 'documents:audit_log_export' %}?format=csv" target="_blank">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> Export as CSV
+                    </a></li>
+                    <li><a class="dropdown-item" href="{% url 'documents:audit_log_export' %}?format=docx" target="_blank">
+                        <i class="bi bi-file-earmark-word"></i> Export as Word Document
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" onclick="window.print(); return false;">
+                        <i class="bi bi-printer"></i> Print Page
+                    </a></li>
+                </ul>
+            </div>
+            
+            <!-- Filter Options -->
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-funnel"></i> Filter
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="?action=CREATE">Creation Events</a></li>
+                    <li><a class="dropdown-item" href="?action=UPDATE">Updates</a></li>
+                    <li><a class="dropdown-item" href="?action=VIEW">Views</a></li>
+                    <li><a class="dropdown-item" href="?action=DOWNLOAD">Downloads</a></li>
+                    <li><a class="dropdown-item" href="?action=APPROVE">Approvals</a></li>
+                    <li><a class="dropdown-item" href="?action=ARCHIVE">Archives</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{% url 'documents:audit_log' %}">Clear Filters</a></li>
+                </ul>
+            </div>
+            
+            <a href="{% url 'documents:document_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Documents
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4 no-print">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">{{ total_logs }}</h5>
+                    <p class="card-text">Total Events</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-success">{{ today_logs }}</h5>
+                    <p class="card-text">Today's Events</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-info">{{ unique_users }}</h5>
+                    <p class="card-text">Active Users</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-warning">{{ unique_documents }}</h5>
+                    <p class="card-text">Documents Affected</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="bi bi-list-ul"></i> Audit Events
+                {% if request.GET.action %}
+                <span class="badge bg-primary ms-2">Filtered by: {{ request.GET.action }}</span>
+                {% endif %}
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if object_list %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th><i class="bi bi-clock"></i> Timestamp</th>
+                            <th><i class="bi bi-person"></i> User</th>
+                            <th><i class="bi bi-activity"></i> Action</th>
+                            <th><i class="bi bi-file-text"></i> Document</th>
+                            <th><i class="bi bi-info-circle"></i> Details</th>
+                            <th class="no-print"><i class="bi bi-gear"></i> Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in object_list %}
+                        <tr>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-bold">{{ log.timestamp|date:"M d, Y" }}</span>
+                                    <small class="text-muted">{{ log.timestamp|date:"H:i:s" }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="user-info">
+                                    <span class="user-name">
+                                        {{ log.user.get_full_name|default:log.user.username|default:"Anonymous" }}
+                                    </span>
+                                    {% if log.user %}
+                                    <span class="user-role">{{ log.user.get_role_display|default:"User" }}</span>
+                                    {% endif %}
+                                    {% if log.ip_address %}
+                                    <span class="ip-info">{{ log.ip_address }}</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge audit-action-badge
+                                    {% if log.action == 'DELETE' %}bg-danger
+                                    {% elif log.action == 'ARCHIVE' %}bg-warning text-dark
+                                    {% elif log.action == 'RESTORE' %}bg-success
+                                    {% elif log.action == 'CREATE' %}bg-primary
+                                    {% elif log.action == 'APPROVE' %}bg-success
+                                    {% elif log.action == 'UPDATE' %}bg-info
+                                    {% elif log.action == 'VIEW' %}bg-secondary
+                                    {% elif log.action == 'DOWNLOAD' %}bg-dark
+                                    {% else %}bg-light text-dark{% endif %}">
+                                    {% if log.action == 'CREATE' %}<i class="bi bi-plus-circle"></i>
+                                    {% elif log.action == 'UPDATE' %}<i class="bi bi-pencil"></i>
+                                    {% elif log.action == 'VIEW' %}<i class="bi bi-eye"></i>
+                                    {% elif log.action == 'DOWNLOAD' %}<i class="bi bi-download"></i>
+                                    {% elif log.action == 'APPROVE' %}<i class="bi bi-check-circle"></i>
+                                    {% elif log.action == 'ARCHIVE' %}<i class="bi bi-archive"></i>
+                                    {% elif log.action == 'DELETE' %}<i class="bi bi-trash"></i>
+                                    {% elif log.action == 'RESTORE' %}<i class="bi bi-arrow-clockwise"></i>
+                                    {% endif %}
+                                    {{ log.get_action_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="document-info">
+                                    {% if log.document_title %}
+                                        <div class="document-title">{{ log.document_title }}</div>
+                                        {% if log.document_type %}
+                                        <div class="document-type">{{ log.document_type }}</div>
+                                        {% endif %}
+                                        <small class="text-muted">ID: {{ log.document_id }}</small>
+                                    {% else %}
+                                        <span class="text-muted">[Document Deleted]</span>
+                                        {% if log.document_id %}
+                                        <small class="text-muted d-block">ID: {{ log.document_id }}</small>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="audit-details">
+                                    {% for key, value in log.additional_info.items %}
+                                    <div class="detail-item">
+                                        <span class="detail-label">{{ key|title }}:</span>
+                                        <span class="detail-value">
+                                            {% if value|length > 50 %}
+                                                {{ value|truncatechars:50 }}
+                                                <button class="btn btn-sm btn-link p-0" type="button" data-bs-toggle="collapse" data-bs-target="#detail-{{ log.id }}-{{ forloop.counter }}" aria-expanded="false">
+                                                    <i class="bi bi-three-dots"></i>
+                                                </button>
+                                                <div class="collapse mt-2" id="detail-{{ log.id }}-{{ forloop.counter }}">
+                                                    <div class="alert alert-light">{{ value }}</div>
+                                                </div>
+                                            {% else %}
+                                                {{ value }}
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    {% empty %}
+                                    <span class="text-muted">No additional details</span>
+                                    {% endfor %}
+                                </div>
+                            </td>
+                            <td class="no-print">
+                                <div class="btn-group btn-group-sm">
+                                    {% if log.document_id %}
+                                    <button class="btn btn-outline-info btn-sm" onclick="showLogDetails({{ log.id }})" title="View Full Details">
+                                        <i class="bi bi-info-circle"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="Audit log pagination" class="no-print">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.action %}&action={{ request.GET.action }}{% endif %}">Previous</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if request.GET.action %}&action={{ request.GET.action }}{% endif %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.action %}&action={{ request.GET.action }}{% endif %}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            
+            {% else %}
+            <div class="alert alert-info text-center">
+                <i class="bi bi-info-circle fs-1 text-muted"></i>
+                <h4 class="mt-3">No Audit Log Entries Found</h4>
+                <p class="text-muted">There are no audit log entries to display{% if request.GET.action %} for the selected filter{% endif %}.</p>
+                {% if request.GET.action %}
+                <a href="{% url 'documents:audit_log' %}" class="btn btn-primary">Clear Filters</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Log Details Modal -->
+<div class="modal fade" id="logDetailsModal" tabindex="-1" aria-labelledby="logDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="logDetailsModalLabel">
+                    <i class="bi bi-info-circle"></i> Audit Log Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="logDetailsContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showLogDetails(logId) {
+    const modal = new bootstrap.Modal(document.getElementById('logDetailsModal'));
+    modal.show();
+    
+    // Show loading spinner
+    document.getElementById('logDetailsContent').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    
+    // Load detailed information via AJAX
+    fetch(`{% url 'documents:audit_log_detail' log_id=0 %}`.replace('0', logId))
+        .then(response => response.json())
+        .then(data => {
+            if (data.html) {
+                document.getElementById('logDetailsContent').innerHTML = data.html;
+            } else {
+                document.getElementById('logDetailsContent').innerHTML = 
+                    '<div class="alert alert-danger">Failed to load details</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading log details:', error);
+            document.getElementById('logDetailsContent').innerHTML = 
+                '<div class="alert alert-danger">Failed to load details</div>';
+        });
+}
+
+// Function to export with current filters
+function exportWithFilters(format) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const exportUrl = new URL('{% url "documents:audit_log_export" %}', window.location.origin);
+    
+    // Add format parameter
+    exportUrl.searchParams.set('format', format);
+    
+    // Add current filters
+    if (urlParams.has('action')) {
+        exportUrl.searchParams.set('action', urlParams.get('action'));
+    }
+    if (urlParams.has('date_from')) {
+        exportUrl.searchParams.set('date_from', urlParams.get('date_from'));
+    }
+    if (urlParams.has('date_to')) {
+        exportUrl.searchParams.set('date_to', urlParams.get('date_to'));
+    }
+    
+    // Open in new tab/window
+    window.open(exportUrl.toString(), '_blank');
+}
+
+// Update export links to include current filters
+document.addEventListener('DOMContentLoaded', function() {
+    const exportLinks = document.querySelectorAll('.dropdown-menu a[href*="audit_log_export"]');
+    exportLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const format = new URL(this.href).searchParams.get('format');
+            exportWithFilters(format);
+        });
+    });
+});
+</script>
+{% endblock %}

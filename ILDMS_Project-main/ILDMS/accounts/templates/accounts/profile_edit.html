@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Edit Profile</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            Please correct the errors below.
+                        </div>
+                    {% endif %}
+
+                    {% for field in form %}
+                        <div class="mb-3 {% if field.name == 'bar_number' %}bar-number-field{% endif %}">
+                            <label for="{{ field.id_for_label }}" class="form-label">
+                                {{ field.label }}
+                                {% if field.name == 'bar_number' %}
+                                    <span class="text-muted">(Required for lawyers)</span>
+                                {% endif %}
+                            </label>
+                            {{ field }}
+                            {% if field.help_text %}
+                                <div class="form-text">{{ field.help_text }}</div>
+                            {% endif %}
+                            {% if field.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ field.errors|join:", " }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <a href="{% url 'accounts:profile' %}" class="btn btn-outline-secondary">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleField = document.querySelector('#id_role');
+    const barNumberField = document.querySelector('.bar-number-field');
+    
+    function toggleBarNumberField() {
+        if (roleField && barNumberField) {
+            const isLawyer = roleField.value === 'LAWYER';
+            barNumberField.style.display = isLawyer ? 'block' : 'none';
+            
+            // Make bar number required for lawyers
+            const barNumberInput = barNumberField.querySelector('input');
+            if (barNumberInput) {
+                barNumberInput.required = isLawyer;
+            }
+        }
+    }
+    
+    // Initial toggle
+    toggleBarNumberField();
+    
+    // Toggle on role change
+    if (roleField) {
+        roleField.addEventListener('change', toggleBarNumberField);
+    }
+});
+</script>
+{% endblock %}
