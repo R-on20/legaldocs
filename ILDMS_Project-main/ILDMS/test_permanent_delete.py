@@ -8,7 +8,7 @@ import django
 
 # Add the project directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings.development')
 
 django.setup()
 
@@ -199,3 +199,4 @@ if __name__ == '__main__':
         # Don't cleanup automatically - let's examine the data
         print("\n💡 Test complete. Audit logs preserved for examination.")
         print("   You can check the audit log in the admin or web interface.")
+

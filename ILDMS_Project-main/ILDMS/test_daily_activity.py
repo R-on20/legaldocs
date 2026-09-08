@@ -8,7 +8,7 @@ import django
 from datetime import datetime, timedelta
 
 # Setup Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings.development')
 django.setup()
 
 from main.models import AuditLog
@@ -76,3 +76,4 @@ def test_daily_activity_data():
 
 if __name__ == '__main__':
     test_daily_activity_data()
+

@@ -7,7 +7,7 @@ import django
 
 # Setup Django
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings.development')
 django.setup()
 
 from documents.ai_search import AISearchProcessor
@@ -100,3 +100,4 @@ def diagnose_ai_search():
 
 if __name__ == "__main__":
     diagnose_ai_search()
+

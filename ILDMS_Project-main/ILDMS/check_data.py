@@ -2,7 +2,7 @@ import os
 import django
 
 # Setup Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings.development')
 django.setup()
 
 from main.models import Document, AuditLog, User
@@ -37,3 +37,4 @@ user_count = User.objects.count()
 print(f"👥 Users: {user_count}")
 
 print("=== END REPORT ===")
+

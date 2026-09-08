@@ -14,7 +14,7 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 # Setup Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings.development')
 django.setup()
 
 from django.test import TestCase, RequestFactory
@@ -306,3 +306,4 @@ def main():
 if __name__ == "__main__":
     exit_code = main()
     sys.exit(exit_code)
+

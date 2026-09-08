@@ -8,7 +8,7 @@ import django
 
 # Add the Django project to the path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings.development')
 
 # Setup Django
 django.setup()
@@ -86,3 +86,4 @@ def test_ai_search():
 
 if __name__ == "__main__":
     test_ai_search()
+

@@ -8,7 +8,7 @@ import django
 from django.conf import settings
 
 # Setup Django environment
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings.development')
 django.setup()
 
 from django.test import Client
@@ -91,3 +91,4 @@ def test_upload_debug():
 
 if __name__ == "__main__":
     test_upload_debug()
+

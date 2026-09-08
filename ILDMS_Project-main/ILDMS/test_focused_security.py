@@ -18,7 +18,7 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 # Set up Django environment
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings.development')
 
 import django
 from django.test import TestCase, RequestFactory, Client, TransactionTestCase
@@ -393,3 +393,4 @@ def run_focused_security_tests():
 if __name__ == "__main__":
     success = run_focused_security_tests()
     sys.exit(0 if success else 1)
+

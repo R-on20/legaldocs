@@ -8,7 +8,7 @@ import django
 
 # Setup Django
 sys.path.append(r'c:\Users\User\ILDMS_Project\ILDMS')
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ILDMS.settings.development')
 django.setup()
 
 from documents.docx_converter import convert_docx_to_html
@@ -45,3 +45,4 @@ def test_converter():
 
 if __name__ == "__main__":
     test_converter()
+
