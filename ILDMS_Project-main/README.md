@@ -61,7 +61,7 @@ A comprehensive, secure, and intelligent document management system designed for
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/Shedie254/ILDMS_Project.git
+   git clone https://github.com/R-on20/legaldocs.git
    cd ILDMS_Project/ILDMS
    ```
 
@@ -277,39 +277,6 @@ POST /api/search/                # Search documents
 POST /api/search/ai/             # AI-powered search
 ```
 
-## 🤝 Contributing
-
-We welcome contributions! Please follow these steps:
-
-1. **Fork the repository**
-2. **Create a feature branch**
-   ```bash
-   git checkout -b feature/amazing-feature
-   ```
-3. **Make your changes**
-4. **Run tests**
-   ```bash
-   python manage.py test
-   python simple_security_test.py
-   ```
-5. **Commit your changes**
-   ```bash
-   git commit -m "Add amazing feature"
-   ```
-6. **Push to the branch**
-   ```bash
-   git push origin feature/amazing-feature
-   ```
-7. **Open a Pull Request**
-
-### Code Style Guidelines
-
-- Follow PEP 8 for Python code
-- Use meaningful variable and function names
-- Add docstrings for all functions and classes
-- Include tests for new features
-- Ensure security best practices
-
 ## 📚 Documentation
 
 ### Additional Documentation Files
@@ -367,13 +334,6 @@ CMD ["gunicorn", "--bind", "0.0.0.0:8000", "ILDMS.wsgi:application"]
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 📞 Support
-
-For support and questions:
-
-- **Issues**: [GitHub Issues](https://github.com/Shedie254/ILDMS_Project/issues)
-- **Email**: [Project Maintainer](mailto:your-email@example.com)
-- **Documentation**: Check the docs folder for detailed guides
 
 ## 🏆 Acknowledgments
 
@@ -382,8 +342,6 @@ For support and questions:
 - PostgreSQL for reliable database functionality
 - The open-source community for various libraries and tools
 
----
 
-**Made with ❤️ for efficient document management**
 
-*Last updated: 2024*
+*Last updated: 2026*
