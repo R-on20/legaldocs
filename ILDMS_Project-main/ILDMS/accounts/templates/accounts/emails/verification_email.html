@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Verify your ILDMS account</title>
+</head>
+<body>
+    <h1>Verify your ILDMS account</h1>
+    <p>Hello {{ user.get_username }},</p>
+    <p>Please verify your email address to activate your ILDMS account.</p>
+    <p><a href="{{ verification_link }}">Verify my account</a></p>
+    <p>This link expires in 24 hours.</p>
+</body>
+</html>

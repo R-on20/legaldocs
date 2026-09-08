@@ -1,7 +1,8 @@
 # accounts/models.py
 from django.db import models
+from django.utils import timezone
 from main.models import User  # Import your existing User model
-from datetime import datetime, timedelta
+from datetime import timedelta
 import secrets
 
 class EmailVerificationToken(models.Model):
@@ -16,7 +17,7 @@ class EmailVerificationToken(models.Model):
     @classmethod
     def create_token(cls, user):
         token = secrets.token_hex(32)
-        expires_at = datetime.now() + timedelta(days=1)
+        expires_at = timezone.now() + timedelta(days=1)
         return cls.objects.create(
             user=user,
             token=token,

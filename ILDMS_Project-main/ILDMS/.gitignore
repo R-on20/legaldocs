@@ -128,12 +128,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Django specific - Enhanced migration handling
-**/migrations/*.py
-**/migrations/*.pyc
+# Django specific - keep migration source files under version control
+# Python cache inside migrations
 **/migrations/__pycache__/
-!**/migrations/
-!**/migrations/__init__.py
 
 # Media files (user uploads)
 media/

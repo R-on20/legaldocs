@@ -6,6 +6,7 @@ from django.contrib.auth import views as auth_views
 from django.contrib.auth import login
 from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib import messages
+from django.utils import timezone
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 from django.conf import settings
@@ -62,7 +63,7 @@ class VerifyEmailView(generic.View):
         try:
             verification = EmailVerificationToken.objects.get(token=token)
 
-            if verification.expires_at < datetime.now(verification.expires_at.tzinfo):
+            if verification.expires_at < timezone.now():
                 messages.error(request, 'Verification link has expired.')
                 return redirect('accounts:login')
 
