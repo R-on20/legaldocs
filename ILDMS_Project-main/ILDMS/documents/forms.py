@@ -12,6 +12,7 @@ from .validators import (
 )
 import bleach
 import re
+import os
 from django.utils.html import escape
 
 # Allowed HTML tags and attributes for CKEditor content
@@ -94,46 +95,31 @@ class DocumentUploadForm(forms.ModelForm):
         return description
 
     def clean_file(self):
-        """Enhanced file validation with security checks"""
+        """Validate uploaded files with comprehensive security checks."""
         file = self.cleaned_data.get('file')
+
         if not file:
             raise ValidationError(_('File is required.'))
-        
-        # Basic security validations
-        validate_no_path_traversal(file.name)
-        
-        # Sanitize filename
-        original_name = file.name
-        file.name = sanitize_filename(file.name)
-        
-        # File size validation based on type
-        validate_file_size_by_type(file)
-        
-        # Use simplified validation instead of comprehensive security checks
-        try:
-            ext = file.name.lower().split('.')[-1] if '.' in file.name else ''
-            
-            # Basic extension check
-            allowed_extensions = ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'txt', 'md', 'mp3', 'wav', 'mp4', 'mov']
-            
-            if ext not in allowed_extensions:
-                raise ValidationError(f"File extension '{ext}' is not allowed. Allowed extensions: {', '.join(allowed_extensions)}")
-            
-            # Basic file size check (simplified)
-            max_size = 100 * 1024 * 1024  # 100MB
-            if file.size > max_size:
-                raise ValidationError(f"File size exceeds maximum allowed size of 100MB.")
-                
-        except ValidationError:
-            raise  # Re-raise validation errors
-        except Exception as e:
-            # Log error but don't fail validation for unexpected issues
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"File validation warning for {file.name}: {e}")
-        
-        return file
 
+        # 1. Prevent path traversal and dangerous filename characters
+        validate_no_path_traversal(file.name)
+
+        # 2. Sanitize filename before further processing
+        file.name = sanitize_filename(file.name)
+
+        # 3. Enforce size limits based on file category
+        validate_file_size_by_type(file)
+
+        # 4. Determine extension after filename sanitization
+        ext = os.path.splitext(file.name)[1].lower()
+
+        # 5. Run comprehensive security validation
+        if ext in ['.mp3', '.wav', '.mp4', '.mov']:
+            media_validator(file)
+        else:
+            document_validator(file)
+
+        return file
 
 class DocumentVersionForm(forms.ModelForm):
     class Meta:

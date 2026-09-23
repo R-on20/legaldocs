@@ -10,6 +10,7 @@ from django.utils.html import escape, strip_tags
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 import bleach
+from bleach.css_sanitizer import CSSSanitizer
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ ALLOWED_ATTRIBUTES = {
 
 ALLOWED_STYLES = ['font-weight', 'font-style', 'text-decoration', 'color', 'background-color']
 
+CSS_SANITIZER = CSSSanitizer(allowed_css_properties=ALLOWED_STYLES) 
 # Dangerous patterns to detect
 XSS_PATTERNS = [
     re.compile(r'<script[^>]*>.*?</script>', re.IGNORECASE | re.DOTALL),
@@ -63,7 +65,7 @@ def sanitize_html_content(content, allowed_tags=None, allowed_attributes=None):
             content,
             tags=allowed_tags or ALLOWED_TAGS,
             attributes=allowed_attributes or ALLOWED_ATTRIBUTES,
-            styles=ALLOWED_STYLES,
+            css_sanitizer=CSS_SANITIZER,
             strip=True
         )
         return cleaned_content

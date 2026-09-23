@@ -60,8 +60,17 @@ class SecureFileValidator:
     """
     
     def __init__(self, allowed_extensions=None, max_size=None):
-        self.allowed_extensions = allowed_extensions or list(ALLOWED_MIME_TYPES.values())
-        self.allowed_extensions = [ext for sublist in self.allowed_extensions for ext in sublist]
+        if allowed_extensions is None:
+         self.allowed_extensions = [
+            ext
+            for extensions in ALLOWED_MIME_TYPES.values()
+            for ext in extensions
+        ]
+        else:
+            self.allowed_extensions = [
+            ext.lower() for ext in allowed_extensions
+        ]
+
         self.max_size = max_size or MAX_FILE_SIZES['document']
     
     def __call__(self, value):
@@ -192,51 +201,144 @@ class SecureFileValidator:
             # Don't fail validation for content reading errors
     
     def validate_no_embedded_threats(self, file):
-        """Additional validation for Office documents and PDFs"""
+        """Additional validation for Office documents and PDFs."""
         try:
             ext = os.path.splitext(file.name)[1].lower()
-            
+
             if ext in ['.docx', '.pptx', '.xlsx']:
                 self._validate_office_document(file)
             elif ext == '.pdf':
                 self._validate_pdf_document(file)
+
+        except ValidationError:
+            raise
+
         except Exception as e:
-            logger.warning(f"Embedded threat validation error for {file.name}: {e}")
-            # Don't fail validation for embedded threat checks
-    
+            logger.error(
+                f"Embedded threat validation failed for {file.name}: {e}"
+            )
+            raise ValidationError(
+                _('Unable to safely validate the uploaded file.')
+            )
+
     def _validate_office_document(self, file):
-        """Validate Office documents for embedded threats"""
+        """Validate Office Open XML documents for structural integrity and threats."""
         try:
             file.seek(0)
-            with tempfile.NamedTemporaryFile() as temp_file:
-                temp_file.write(file.read())
-                temp_file.flush()
-                file.seek(0)
-                
-                # Office documents are ZIP files, check contents
-                with zipfile.ZipFile(temp_file.name, 'r') as zip_file:
-                    # Check for suspicious files in the archive
-                    for name in zip_file.namelist():
-                        if any(danger in name.lower() for danger in ['.exe', '.dll', '.bat', '.cmd']):
-                            raise ValidationError(_('Office document contains potentially dangerous content.'))
-                        
-                        # Check for external references (log warning but don't fail)
-                        if name.endswith('.xml'):
-                            try:
-                                content = zip_file.read(name).decode('utf-8', errors='ignore')
-                                if any(pattern in content.lower() for pattern in ['http:', 'https:', 'ftp:', 'file:']):
-                                    logger.warning(f"Office document contains external references in {name}")
-                            except:
-                                pass
-                                
+
+            with zipfile.ZipFile(file, 'r') as zip_file:
+                # Verify the archive itself is structurally valid.
+                if zip_file.testzip() is not None:
+                    raise ValidationError(
+                        _('The Office document contains corrupted data.')
+                    )
+
+                names = zip_file.namelist()
+
+                # Office Open XML files must contain these core structures.
+                required_files = [
+                    '[Content_Types].xml',
+                    '_rels/.rels',
+                ]
+
+                missing_files = [
+                    name for name in required_files
+                    if name not in names
+                ]
+
+                if missing_files:
+                    raise ValidationError(
+                        _('The uploaded file is not a valid Office document.')
+                    )
+
+                # Reject suspicious executable content.
+                dangerous_extensions = (
+                    '.exe',
+                    '.dll',
+                    '.bat',
+                    '.cmd',
+                    '.scr',
+                    '.js',
+                    '.vbs',
+                    '.ps1',
+                    '.sh',
+                )
+
+                for name in names:
+                    normalized_name = name.lower()
+
+                    if normalized_name.endswith(dangerous_extensions):
+                        raise ValidationError(
+                            _('Office document contains potentially dangerous content.')
+                        )
+
+                    # Check XML relationships/content for dangerous
+                    # external references. These are logged rather than
+                    # rejected because legitimate Office documents can
+                    # contain external links.
+                    if normalized_name.endswith('.xml'):
+                        try:
+                            content = zip_file.read(name).decode(
+                                'utf-8',
+                                errors='ignore'
+                            ).lower()
+
+                            if any(
+                                pattern in content
+                                for pattern in [
+                                    'http://',
+                                    'https://',
+                                    'ftp://',
+                                    'file://',
+                                ]
+                            ):
+                                logger.warning(
+                                    "Office document contains external "
+                                    "references in %s: %s",
+                                    name,
+                                    file.name,
+                                )
+
+                        except Exception as e:
+                            logger.warning(
+                                "Could not inspect XML file %s in %s: %s",
+                                name,
+                                file.name,
+                                e,
+                            )
+
         except zipfile.BadZipFile:
-            logger.warning(f"Office document appears to be corrupted: {file.name}")
-            # Don't fail validation for ZIP errors
+            raise ValidationError(
+                _('The uploaded Office document is not a valid Office file.')
+            )
+
         except ValidationError:
-            raise  # Re-raise validation errors
+            raise
+
         except Exception as e:
-            logger.warning(f"Office document validation error for {file.name}: {e}")
-            # Don't fail validation for unexpected errors
+            logger.error(
+                "Office document validation failed for %s: %s",
+                file.name,
+                e,
+            )
+            raise ValidationError(
+                _('Unable to safely validate the Office document.')
+            )
+
+        finally:
+            # Always reset the uploaded file pointer for subsequent processing.
+            file.seek(0)
+
+    def _validate_pdf_document(self, file):
+        """Basic PDF validation."""
+        file.seek(0)
+        header = file.read(8)
+        file.seek(0)
+
+        if not header.startswith(b'%PDF-'):
+            raise ValidationError(
+                _('File does not appear to be a valid PDF.')
+            )
     
     def _validate_pdf_document(self, file):
         """Basic PDF validation"""
